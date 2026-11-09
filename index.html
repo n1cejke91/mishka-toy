@@ -1,0 +1,1311 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Пульт Умного Мишки</title>
+<style>
+
+  :root { --bg:#fff8f0; --card:#fff; --acc:#c8742c; --acc2:#7a4a1e; --ok:#2e8b57; --err:#c0392b; --bat-high:#2e8b57; --bat-mid:#d4a017; --bat-low:#c0392b; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:-apple-system,system-ui,Segoe UI,Roboto,sans-serif; background:var(--bg); color:#333; }
+  header { background:var(--acc2); color:#fff; padding:14px 16px; font-size:20px; font-weight:700; display:flex; align-items:center; justify-content:space-between; gap:10px; }
+  header .title { flex:1; }
+  #hdrBat { display:inline-flex; align-items:center; gap:6px; font-size:15px; font-weight:600; background:rgba(255,255,255,.15); padding:6px 10px; border-radius:20px; }
+  #hdrBat .ico { font-size:16px; }
+  #hdrBat.high { color:#b6f5c8; } #hdrBat.mid { color:#ffe08a; } #hdrBat.low { color:#ffb3a8; } #hdrBat.unknown { color:#ddd; }
+  #hdrBat .mv { font-size:11px; opacity:.75; font-weight:400; }
+  #batWarn { display:none; background:#fff3cd; color:#856404; padding:10px 16px; font-size:15px; border-bottom:1px solid #ffeeba; }
+  #batWarn.show { display:block; }
+  main { padding:12px; max-width:720px; margin:0 auto; }
+  .card { background:var(--card); border-radius:16px; padding:14px; margin-bottom:12px; box-shadow:0 1px 4px rgba(0,0,0,.08); }
+  h2 { font-size:17px; margin:0 0 10px; }
+  h3 { font-size:15px; margin:12px 0 8px; color:#5a3512; }
+  button { font-size:18px; padding:16px 14px; border:0; border-radius:14px; background:var(--acc); color:#fff; font-weight:600; min-height:56px; cursor:pointer; }
+  button:disabled { opacity:.45; }
+  button.sec { background:#eee; color:#333; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:10px; }
+  .big { width:100%; font-size:20px; }
+  #status { margin-top:8px; font-size:15px; }
+  .ok { color:var(--ok); } .err { color:var(--err); }
+  .chips { display:flex; flex-wrap:wrap; gap:8px; max-height:300px; overflow:auto; }
+  .chip { padding:10px 14px; min-height:44px; font-size:16px; border-radius:22px; background:#f3e3d3; color:#5a3512; }
+  .chip.today { background:#ffd27a; } .chip.night { background:#9fb4ff; }
+  .chipw { display:inline-flex; align-items:stretch; }
+  .chipw .star { min-height:44px; padding:6px 10px; font-size:16px; border-radius:22px 0 0 22px; background:#ead2bb; color:#5a3512; margin-right:1px; }
+  .chipw .star.on { background:#ffe08a; color:#8a6a00; }
+  .chipw .chip { border-radius:0; -webkit-user-select:none; user-select:none; -webkit-touch-callout:none; }
+  .chipw .pen { min-height:44px; padding:6px 10px; font-size:15px; border-radius:0 22px 22px 0; background:#ead2bb; color:#5a3512; margin-left:1px; }
+  .chipw.nostar .chip { border-radius:22px 0 0 22px; }
+  .badge { font-size:10px; opacity:.7; font-weight:400; margin-left:4px; }
+  .cid { font-size:11px; opacity:.6; font-weight:400; }
+  .namerow { display:flex; align-items:center; gap:6px; padding:6px 0; border-bottom:1px solid #eee; }
+  .namerow .nametext { flex:1; font-size:16px; }
+  button.small { min-height:40px; padding:6px 12px; font-size:16px; }
+  textarea { width:100%; min-height:90px; font-family:ui-monospace,Menlo,Consolas,monospace; font-size:13px; border:1px solid #ccc; border-radius:10px; padding:8px; }
+  input[type=text], input[type=number] { font-size:17px; padding:12px; border:1px solid #ccc; border-radius:10px; width:100%; }
+  input[type=range] { width:100%; height:40px; }
+  .row { display:flex; gap:8px; align-items:center; }
+  .row > * { flex:1; }
+  #log { font-family:ui-monospace,Menlo,Consolas,monospace; font-size:12px; white-space:pre-wrap; background:#222; color:#cfc; border-radius:10px; padding:8px; max-height:260px; overflow:auto; }
+  .tx { color:#ffd27a; } .rx { color:#9fe; } .sys { color:#aaa; }
+  #log .ka { display:none; color:#777; } #log.showka .ka { display:block; }
+  details summary { font-size:17px; font-weight:600; cursor:pointer; padding:6px 0; }
+  .muted { color:#777; font-size:14px; }
+  .info { display:grid; grid-template-columns:1fr 1fr; gap:6px; font-size:16px; }
+  .togrow { display:flex; align-items:flex-start; gap:10px; padding:10px; background:#faf3eb; border-radius:12px; margin:8px 0; }
+  .togrow input { width:22px; height:22px; margin-top:2px; flex:0 0 auto; }
+
+
+  .cat { margin-top:10px; border:1px solid #f0e0d0; border-radius:12px; overflow:hidden; }
+  .cat > summary { list-style:none; padding:10px 12px; background:#faf3eb; font-weight:600; font-size:16px; cursor:pointer; display:flex; justify-content:space-between; align-items:center; }
+  .cat > summary::-webkit-details-marker { display:none; }
+  .cat .catbody { padding:10px; }
+  .cat .count { font-weight:400; color:#777; font-size:13px; }
+  .viewtabs { display:flex; gap:6px; flex-wrap:wrap; margin:8px 0; }
+  .viewtabs button { min-height:40px; padding:8px 12px; font-size:15px; background:#eee; color:#333; }
+  .viewtabs button.on { background:var(--acc); color:#fff; }
+  .filters { display:flex; flex-wrap:wrap; gap:6px; margin:8px 0; align-items:center; }
+  .filters .fchip { min-height:36px; padding:6px 10px; font-size:14px; border-radius:18px; background:#eee; color:#333; }
+  .filters .fchip.on { background:#c8742c; color:#fff; }
+  .lenhint { font-size:11px; opacity:.65; margin-left:4px; }
+  .tagpill { display:inline-block; font-size:11px; background:#e8f0ff; color:#345; border-radius:10px; padding:1px 6px; margin-left:4px; }
+  .modal-bg { display:none; position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:100; align-items:flex-end; justify-content:center; padding:12px; }
+  .modal-bg.show { display:flex; }
+  .modal { background:#fff; border-radius:16px 16px 12px 12px; padding:16px; width:100%; max-width:480px; max-height:90vh; overflow:auto; box-shadow:0 -4px 24px rgba(0,0,0,.2); }
+  .modal h3 { margin:0 0 10px; font-size:18px; }
+  .modal label { display:block; margin-top:10px; font-size:14px; color:#555; }
+  .modal .actions { display:flex; gap:8px; margin-top:14px; }
+  .modal .actions button { flex:1; }
+  .suggest { display:flex; flex-wrap:wrap; gap:6px; margin-top:6px; }
+  .suggest button { min-height:32px; padding:4px 10px; font-size:13px; background:#f3e3d3; color:#5a3512; }
+  .itag { display:inline-flex; align-items:center; gap:4px; background:#e8f0ff; color:#345; border-radius:14px; padding:4px 8px; margin:2px; font-size:14px; }
+  .itag button { min-height:24px; padding:0 6px; font-size:14px; background:transparent; color:#345; }
+  .tagrow { display:flex; align-items:center; gap:6px; padding:8px 0; border-bottom:1px solid #eee; }
+  .tagrow .nm { flex:1; font-size:16px; }
+</style>
+</head>
+<body>
+<header>
+  <span class="title">🧸 Пульт Умного Мишки</span>
+  <span id="hdrBat" class="unknown" title="Батарея"><span class="ico">🔋</span><span id="hdrBatPct">—</span><span class="mv" id="hdrBatMv"></span></span>
+</header>
+<div id="batWarn">⚠️ Низкий заряд Мишки — поставь на зарядку.</div>
+<main>
+  <div class="card">
+    <button id="btnConnect" class="big">Подключиться к Мишке</button>
+    <div id="status" class="muted">Не подключено</div>
+    <div id="nobt" class="err" style="display:none;margin-top:8px"></div>
+  </div>
+
+  <div class="card">
+    <h2>Мишка</h2>
+    <div class="info">
+      <div>Батарея: <b id="iBat">—</b></div>
+      <div>Громкость: <b id="iVol">—</b></div>
+      <div>Зарядка: <b id="iChg">—</b></div>
+      <div>Прошивка: <b id="iFw">—</b></div>
+      <div style="grid-column:1/3">Плеер: <b id="iPlr">—</b></div>
+    </div>
+    <div class="grid" style="margin-top:10px">
+      <button class="sec need" id="btnInfo">Обновить</button>
+      <button class="sec need" id="btnTime">Выставить время</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>⭐ Избранное и недавние</h2>
+    <h3>Избранное</h3>
+    <div class="chips" id="favChips"></div>
+    <p class="muted" id="favHint">Звезда у сказки — в избранное пульта. Если Мишка ответит на FLST, его список тоже здесь (метка «на мишке»).</p>
+    <h3>Недавние</h3>
+    <div class="chips" id="recentChips"></div>
+    <p class="muted" id="recentHint">Последние сказки, запущенные из пульта.</p>
+  </div>
+
+  <div class="card">
+    <h2>Сказки</h2>
+    <div class="grid">
+      <button class="need" id="btnToday">Сказки на сегодня</button>
+      <button class="need" id="btnNight">🌙 Ночная сказка</button>
+    </div>
+    <div class="chips" id="todayChips" style="margin-top:10px"></div>
+    <p class="muted" id="todayHint"></p>
+    <div id="plStatus" class="muted"></div>
+  </div>
+
+  <div class="card">
+    <h2>Управление</h2>
+    <div class="grid">
+      <button class="need" id="btnPause">⏸ Пауза</button>
+      <button class="need" id="btnResume">▶️ Продолжить</button>
+      <button class="need" id="btnStop">⏹ Стоп</button>
+    </div>
+    <div style="margin-top:14px">
+      Громкость: <b id="volVal">5</b>
+      <input type="range" id="vol" min="1" max="10" step="1" value="5" class="need">
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Всё, что есть на Мишке</h2>
+    <div class="row">
+      <input type="number" id="playId" placeholder="id, например 5686" inputmode="numeric">
+      <button class="need" id="btnPlayId" style="flex:0 0 auto">Играть</button>
+    </div>
+    <div style="margin-top:10px"><button class="sec need" id="btnList">Загрузить список (LIST)</button></div>
+    <label class="muted" style="display:block;margin-top:8px"><input type="checkbox" id="onlyNamed"> только с названиями</label>
+    <div class="viewtabs" id="viewTabs">
+      <button type="button" class="on" data-view="type" id="viewType">По типу</button>
+      <button type="button" data-view="tags" id="viewTags">По меткам</button>
+    </div>
+    <div class="filters" id="dayFilters"></div>
+    <div class="filters" id="lenFilters">
+      <button type="button" class="fchip on" data-len="all">Все длины</button>
+      <button type="button" class="fchip" data-len="short">Короткие</button>
+      <button type="button" class="fchip" data-len="long">Длинные</button>
+    </div>
+    <div class="filters" id="tagFilters" style="display:none"></div>
+    <p class="muted" style="margin:4px 0 0">⭐ — избранное · ✏️ или долгое нажатие — название и метки. Категории из метаданных карты.</p>
+    <div id="listChips" style="margin-top:10px"></div>
+  </div>
+
+  <div class="card">
+    <details id="settings">
+      <summary>⚙️ Настройки</summary>
+      <p class="muted">Токен — то, что Мишка запомнил при сопряжении (PAIR). При подключении пульт шлёт <code>AUTH &lt;токен&gt;</code>.</p>
+      <label>UID (любой, как «пользователь»)</label>
+      <input type="text" id="uid" autocomplete="off" spellcheck="false">
+      <label>Токен (32 hex)</label>
+      <input type="text" id="token" autocomplete="off" spellcheck="false">
+      <div class="grid" style="margin-top:10px">
+        <button class="sec" id="btnSave">Сохранить</button>
+        <button class="sec" id="btnGen">Сгенерировать новый</button>
+        <button class="need" id="btnPair">Сопряжение (PAIR)</button>
+      </div>
+      <p class="muted">Для PAIR: нажми кнопку и в течение ~20 секунд одновременно зажми обе нижние лапы Мишки. Старое сопряжение (с официальным приложением) при этом заменится.</p>
+      <label>Сказки на сегодня (id через пробел)</label>
+      <input type="text" id="todayList" inputmode="numeric" autocomplete="off">
+      <label>Ночная сказка (id)</label>
+      <input type="text" id="nightList" inputmode="numeric" autocomplete="off">
+      <p class="muted">Если Мишка сам пришлёт список дня (строка «today … night …»), он подставится сюда автоматически.</p>
+      <h2 style="margin-top:16px">Избранное на Мишке</h2>
+      <div class="togrow">
+        <input type="checkbox" id="syncDevFavs">
+        <div>
+          <label for="syncDevFavs" style="font-weight:600">Писать избранное на Мишку (FADD / FREM)</label>
+          <p class="muted" style="margin:4px 0 0">По умолчанию выкл. Звезда меняет только список в пульте. Если включить — при нажатии звезды пульт также добавит/уберёт сказку в избранное Мишки (лапа «звезда»). Лимит на устройстве: 3 без подписки / 10 с подпиской. Список с Мишки (FLST) читается всегда при подключении.</p>
+        </div>
+      </div>
+      <div class="grid" style="margin-top:8px">
+        <button class="sec need" id="btnFlst">Обновить избранное с Мишки (FLST)</button>
+      </div>
+      <h2 style="margin-top:16px">Названия сказок</h2>
+      <p class="muted">Только для отображения в пульте — Мишке всегда уходит числовой id.</p>
+      <div id="namesList"></div>
+      <div class="grid" style="margin-top:8px">
+        <button class="sec" id="btnNameAdd">+ Добавить по id</button>
+        <button class="sec" id="btnNamesExport">Экспорт (файл)</button>
+        <button class="sec" id="btnNamesCopy">Копировать JSON</button>
+      </div>
+      <p class="muted">Перенос на iPhone: «Копировать JSON» → отправь себе текст → в Bluefy вставь его в поле ниже и нажми «Импорт». В экспорт входят названия, избранное пульта и недавние.</p>
+      <textarea id="namesJson" placeholder='{"names":{"5686":"Колобок"},"favs":["5686"],"tags":{"5686":["Короткие"]}}' spellcheck="false"></textarea>
+      <div class="grid" style="margin-top:8px">
+        <button class="sec" id="btnNamesImport">Импорт из поля</button>
+        <label class="sec" style="display:flex;align-items:center;justify-content:center;background:#eee;border-radius:14px;min-height:56px;font-weight:600;cursor:pointer">Импорт из файла<input type="file" id="namesFile" accept=".json,application/json,text/plain" style="display:none"></label>
+      </div>
+      <h2 style="margin-top:16px">Метки</h2>
+      <p class="muted">Свои ярлыки к сказкам (например «Про животных»). Редактируются вместе с названием по ✏️.</p>
+      <div id="tagManager"></div>
+      <label style="display:block;margin-top:10px">Ручная команда (только безопасные, аргументы через пробел)</label>
+      <div class="row">
+        <input type="text" id="rawCmd" placeholder="например: SPLR или GTIM или FLST" autocomplete="off" spellcheck="false">
+        <button class="need" id="btnRaw" style="flex:0 0 auto">Отправить</button>
+      </div>
+    </details>
+  </div>
+
+  <div class="card">
+    <h2>Журнал обмена</h2>
+    <div id="log"></div>
+    <div class="row" style="margin-top:8px">
+      <label style="flex:2"><input type="checkbox" id="showKa"> показывать keepalive (SPLR каждые 10 с)</label>
+      <button class="sec" id="btnClear" style="flex:1">Очистить</button>
+    </div>
+  </div>
+</main>
+
+<div class="modal-bg" id="editModal" role="dialog" aria-modal="true">
+  <div class="modal">
+    <h3 id="editTitle">Сказка</h3>
+    <label>Название (только в пульте)</label>
+    <input type="text" id="editName" placeholder="например: Колобок" autocomplete="off" spellcheck="false">
+    <label>Метки (через запятую или Enter)</label>
+    <input type="text" id="editTags" placeholder="Про животных, Короткие" autocomplete="off" spellcheck="false">
+    <div class="suggest" id="editSuggest"></div>
+    <div id="editTagPills" style="margin-top:8px"></div>
+    <div class="actions">
+      <button class="sec" id="editCancel">Отмена</button>
+      <button id="editSave">Сохранить</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// Протокол Умного Мишки (Nordic UART). Общий модуль: браузер + Node-тест.
+(function (root) {
+  const FORBIDDEN = ['RESE', 'SDFM', 'MLCL', 'FILE', 'STTR', 'SURL', 'WREM', 'WOFF'];
+  // Кадр как в приложении: [cmd, ...args, '', ''].join('\n') => "CMD\na1\na2\n\n"
+  function buildFrame(cmd, args) {
+    cmd = String(cmd).trim().toUpperCase();
+    if (!/^[A-Z]{4}$/.test(cmd)) throw new Error('Некорректная команда: ' + cmd);
+    if (FORBIDDEN.includes(cmd)) throw new Error('Команда ' + cmd + ' заблокирована в пульте');
+    const a = (args || []).map(x => String(x));
+    for (const s of a) if (s.includes('\n')) throw new Error('Аргумент не может содержать перевод строки');
+    return [cmd, ...a, '', ''].join('\n');
+  }
+  const ANSI = /\x1b\[[0-9;]*[A-Za-z]/g;
+  // Потоковый разборщик: копит текст, отдаёт ответы, разделённые пустой строкой.
+  function createParser() {
+    let buf = '';
+    return {
+      push(text) {
+        buf += String(text).replace(ANSI, '').replace(/\r\n?/g, '\n');
+        const out = [];
+        let i;
+        while ((i = buf.indexOf('\n\n')) !== -1) {
+          const chunk = buf.slice(0, i);
+          buf = buf.slice(i + 2);
+          const r = parseResponse(chunk);
+          if (r) out.push(r);
+        }
+        return out;
+      },
+      pending() { return buf; },
+      reset() { buf = ''; }
+    };
+  }
+  // Ответ: первая строка = имя команды (или UNKN/NAUT), остальное — данные.
+  // На всякий случай поддерживаем и консольный вид "STMZ 0" (через пробелы).
+  function parseResponse(chunk) {
+    let lines = String(chunk).replace(ANSI, '').split('\n').map(s => s.trim()).filter(s => s !== '');
+    if (!lines.length) return null;
+    if (lines.length === 1 && /\s/.test(lines[0])) lines = lines[0].split(/\s+/);
+    const head = lines[0];
+    const rest = lines.slice(1);
+    if (head === 'UNKN') return { cmd: null, error: 'unknown command', status: 'UNKN', lines: rest, raw: chunk };
+    if (head === 'NAUT') return { cmd: null, error: 'not authorized', status: 'NAUT', lines: rest, raw: chunk };
+    return { cmd: head.toUpperCase(), lines: rest, raw: chunk };
+  }
+  // Разбор данных для известных команд (по парсерам приложения).
+  // INFO: lines[0]=sn, [1]=firmware, [2]=battery (мВ на реальном устройстве), [3]=volume, [4]=charge (опц.)
+  // FLST: как LIST — список id избранного на Мишке (лапа «звезда»).
+  // FADD/FREM: код 0 ок; FADD 2 = «Превышен лимит избранного» (3 без подписки / 10 с).
+  function interpret(cmd, lines) {
+    const n = x => parseInt(x, 10);
+    switch (cmd) {
+      case 'INFO': return { sn: lines[0], firmware: n(lines[1]), battery: n(lines[2]), volume: n(lines[3]), charge: lines[4] !== undefined ? n(lines[4]) : undefined };
+      case 'SPLR': return { state: n(lines[0]), stateName: ['Остановлено', 'Пауза', 'Играет'][n(lines[0])] || '?', content: lines[1], length: n(lines[2]), position: n(lines[3]) };
+      case 'GTIM': return { year: n(lines[0]), month: n(lines[1]), day: n(lines[2]), hours: n(lines[3]), minutes: n(lines[4]), seconds: n(lines[5]), rest: lines.slice(6).map(n) };
+      case 'LIST': case 'FLST': case 'WSLS': return { items: lines };
+      default: return { code: lines.length ? n(lines[0]) : undefined, data: lines.slice(1) };
+    }
+  }
+  const STRT_ERR = { 1: 'Сбой (устаревший ответ)', 2: 'Неверный формат запроса', 3: 'Нет такого контента', 4: 'Контент не загружен полностью' };
+  const FADD_ERR = { 1: 'Сбой', 2: 'Превышен лимит избранного' };
+  const FREM_ERR = { 1: 'Сбой' };
+  // Кусок кривой Li-ion по мВ → % (наблюдалось battery=4100 при volume=7).
+  const BAT_CURVE = [[4200, 100], [4100, 90], [4000, 80], [3900, 65], [3800, 50], [3700, 30], [3600, 15], [3500, 5], [3400, 0]];
+  function batteryPercent(mv) {
+    const v = Number(mv);
+    if (!isFinite(v)) return null;
+    // Защита: если прошивка/мок уже отдал проценты (≤100), не гоняем через кривую мВ.
+    if (v >= 0 && v <= 100) return Math.round(Math.min(100, Math.max(0, v)));
+    if (v >= BAT_CURVE[0][0]) return 100;
+    if (v <= BAT_CURVE[BAT_CURVE.length - 1][0]) return 0;
+    for (let i = 0; i < BAT_CURVE.length - 1; i++) {
+      const [v1, p1] = BAT_CURVE[i], [v0, p0] = BAT_CURVE[i + 1];
+      if (v <= v1 && v >= v0) {
+        const t = (v - v0) / (v1 - v0);
+        return Math.round(p0 + t * (p1 - p0));
+      }
+    }
+    return 0;
+  }
+  function batteryLevel(pct) {
+    if (pct == null || isNaN(pct)) return 'unknown';
+    if (pct <= 20) return 'low';
+    if (pct <= 40) return 'mid';
+    return 'high';
+  }
+  // Как приложение: STMZ = utcOffset/60; STIM = moment().format('YYYY M D H m s') (месяц 1-12)
+  function timeArgs(d) {
+    d = d || new Date();
+    return { stmz: [String(-d.getTimezoneOffset() / 60)], stim: [d.getFullYear(), d.getMonth() + 1, d.getDate(), d.getHours(), d.getMinutes(), d.getSeconds()].map(String) };
+  }
+  function randomToken() {
+    const b = new Uint8Array(16);
+    (root.crypto || require('crypto').webcrypto).getRandomValues(b);
+    return Array.from(b, x => x.toString(16).padStart(2, '0')).join('');
+  }
+  // ---- Названия / избранное / недавние (чисто визуально, кроме опциональных FADD/FREM) ----
+  function cleanName(v) { return String(v == null ? '' : v).replace(/[\u0000-\u001f]/g, ' ').trim().slice(0, 80); }
+  function setName(map, id, name) {
+    const m = Object.assign({}, map); id = String(id).trim();
+    if (!/^\d+$/.test(id)) throw new Error('id должен быть числом');
+    const n = cleanName(name);
+    if (n) m[id] = n; else delete m[id];
+    return m;
+  }
+  function normalizeIdList(arr, max) {
+    const out = [], seen = Object.create(null);
+    (arr || []).forEach(x => {
+      const id = String(x == null ? '' : x).trim();
+      if (/^\d+$/.test(id) && !seen[id]) { seen[id] = 1; out.push(id); }
+    });
+    return typeof max === 'number' ? out.slice(0, max) : out;
+  }
+  // Импорт названий: принимает {"5686":"Колобок"} или {names:{...}} или [{id,name}]
+  function parseNames(json) {
+    let o = typeof json === 'string' ? JSON.parse(json) : json;
+    if (o && o.names && typeof o.names === 'object') o = o.names;
+    const out = {};
+    const add = (id, name) => { id = String(id).trim(); const n = cleanName(name); if (/^\d+$/.test(id) && n) out[id] = n; };
+    if (Array.isArray(o)) o.forEach(x => x && add(x.id, x.name));
+    else if (o && typeof o === 'object') Object.keys(o).forEach(k => add(k, o[k]));
+    else throw new Error('Неверный формат');
+    return out;
+  }
+
+  // ---- Метки пользователя (id -> [tag, ...]) ----
+  function cleanTag(v) { return String(v == null ? '' : v).replace(/[\u0000-\u001f]/g, ' ').trim().replace(/\s+/g, ' ').slice(0, 40); }
+  function normalizeTagsMap(obj) {
+    const out = {};
+    if (!obj || typeof obj !== 'object' || Array.isArray(obj)) return out;
+    Object.keys(obj).forEach(id => {
+      id = String(id).trim();
+      if (!/^\d+$/.test(id) && !/^-\d+$/.test(id)) return;
+      // allow only positive content ids in UI normally; keep numeric
+      if (!/^-?\d+$/.test(id)) return;
+      if (!/^\d+$/.test(id)) return; // page tags only for positive ids
+      const list = Array.isArray(obj[id]) ? obj[id] : [];
+      const seen = Object.create(null), tags = [];
+      list.forEach(t => { t = cleanTag(t); if (t && !seen[t.toLowerCase()]) { seen[t.toLowerCase()] = 1; tags.push(t); } });
+      if (tags.length) out[id] = tags;
+    });
+    return out;
+  }
+  function setItemTags(map, id, tags) {
+    const m = normalizeTagsMap(map); id = String(id).trim();
+    if (!/^\d+$/.test(id)) throw new Error('id должен быть числом');
+    const list = [];
+    const seen = Object.create(null);
+    (tags || []).forEach(t => { t = cleanTag(t); if (t && !seen[t.toLowerCase()]) { seen[t.toLowerCase()] = 1; list.push(t); } });
+    if (list.length) m[id] = list; else delete m[id];
+    return m;
+  }
+  function allTagNames(map) {
+    const seen = Object.create(null), out = [];
+    Object.keys(map || {}).forEach(id => (map[id] || []).forEach(t => {
+      const k = t.toLowerCase(); if (!seen[k]) { seen[k] = 1; out.push(t); }
+    }));
+    return out.sort((a, b) => a.localeCompare(b, 'ru'));
+  }
+  function renameTagInMap(map, from, to) {
+    from = cleanTag(from); to = cleanTag(to);
+    if (!from) throw new Error('Пустая метка');
+    const m = normalizeTagsMap(map);
+    Object.keys(m).forEach(id => {
+      const had = m[id].some(t => t.toLowerCase() === from.toLowerCase());
+      if (!had) return;
+      let tags = m[id].filter(t => t.toLowerCase() !== from.toLowerCase());
+      if (to && !tags.some(t => t.toLowerCase() === to.toLowerCase())) tags.push(to);
+      if (tags.length) m[id] = tags; else delete m[id];
+    });
+    return m;
+  }
+  function deleteTagInMap(map, name) { return renameTagInMap(map, name, ''); }
+
+  // Экспорт v3: names + favs/recent + tags. Старые файлы (v1/v2) читаются.
+  function exportData(data) {
+    data = data || {};
+    const out = { app: 'mishka-pult', version: 3, names: data.names || {} };
+    if (data.favs) out.favs = normalizeIdList(data.favs);
+    if (data.recent) out.recent = normalizeIdList(data.recent, 10);
+    if (data.tags) out.tags = normalizeTagsMap(data.tags);
+    return JSON.stringify(out, null, 2);
+  }
+  function exportNames(map) { return exportData({ names: map }); }
+  function parseExport(json) {
+    let o = typeof json === 'string' ? JSON.parse(json) : json;
+    if (!o || typeof o !== 'object') throw new Error('Неверный формат');
+    const names = parseNames(o);
+    const favs = Array.isArray(o.favs) ? normalizeIdList(o.favs) : [];
+    const recent = Array.isArray(o.recent) ? normalizeIdList(o.recent, 10) : [];
+    const tags = o.tags ? normalizeTagsMap(o.tags) : {};
+    return { names, favs, recent, tags };
+  }
+  function label(map, id) { id = String(id); return map && map[id] ? map[id] + ' (' + id + ')' : id; }
+  const api = {
+    cleanName, setName, parseNames, exportNames, exportData, parseExport, normalizeIdList, label,
+    cleanTag, normalizeTagsMap, setItemTags, allTagNames, renameTagInMap, deleteTagInMap,
+    batteryPercent, batteryLevel, BAT_CURVE,
+    FORBIDDEN, buildFrame, createParser, parseResponse, interpret,
+    STRT_ERR, FADD_ERR, FREM_ERR, timeArgs, randomToken
+  };
+  if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.MishkaProto = api;
+})(typeof window !== 'undefined' ? window : globalThis);
+
+</script>
+<script>
+
+(function () {
+  const P = window.MishkaProto;
+  const CONTENT_META = {"version":1,"source":"sd-backup info+data_list.csv","thresholdBytes":1510980,"weekdayBits":["Вс","Пн","Вт","Ср","Чт","Пт","Сб"],"types":{"-1":"сказки","-2":"другое (9xxx)","-3":"игры","0":"системные","1":"системные (2003)"},"items":{"-7073":{"t":-3,"n":0,"w":0,"s":0,"a":163,"b":6478798},"515":{"t":0,"n":0,"w":0,"s":0,"a":30,"b":4649492},"2003":{"t":1,"n":0,"w":0,"s":0,"a":42,"b":8119690},"5681":{"t":-1,"n":0,"w":8,"s":3,"a":5,"b":2201476},"5682":{"t":-1,"n":0,"w":8,"s":1,"a":1,"b":177888},"5683":{"t":-1,"n":0,"w":8,"s":2,"a":4,"b":1510980},"5684":{"t":-1,"n":0,"w":8,"s":1,"a":1,"b":246851},"5685":{"t":-1,"n":1,"w":8,"s":3,"a":7,"b":6854047},"5686":{"t":-1,"n":0,"w":2,"s":2,"a":2,"b":1343842},"5687":{"t":-1,"n":0,"w":2,"s":3,"a":7,"b":7910102},"5688":{"t":-1,"n":0,"w":2,"s":1,"a":1,"b":218639},"5689":{"t":-1,"n":1,"w":2,"s":3,"a":3,"b":5506841},"5690":{"t":-1,"n":0,"w":2,"s":1,"a":1,"b":1785613},"5691":{"t":-1,"n":0,"w":4,"s":1,"a":1,"b":218012},"5692":{"t":-1,"n":0,"w":4,"s":1,"a":1,"b":742133},"5693":{"t":-1,"n":0,"w":4,"s":3,"a":7,"b":6111415},"5694":{"t":-1,"n":0,"w":4,"s":1,"a":1,"b":203175},"5695":{"t":-1,"n":1,"w":4,"s":2,"a":3,"b":4449170},"5696":{"t":-1,"n":0,"w":16,"s":1,"a":1,"b":339011},"5697":{"t":-1,"n":0,"w":16,"s":1,"a":1,"b":940873},"5698":{"t":-1,"n":0,"w":16,"s":3,"a":5,"b":2824553},"5700":{"t":-1,"n":0,"w":16,"s":2,"a":3,"b":4764216},"5701":{"t":-1,"n":0,"w":32,"s":2,"a":4,"b":1834561},"5702":{"t":-1,"n":0,"w":32,"s":1,"a":1,"b":670244},"5703":{"t":-1,"n":0,"w":32,"s":1,"a":1,"b":487596},"5704":{"t":-1,"n":0,"w":32,"s":1,"a":1,"b":222401},"5705":{"t":-1,"n":1,"w":32,"s":2,"a":3,"b":9143367},"5706":{"t":-1,"n":0,"w":64,"s":2,"a":4,"b":3445124},"5707":{"t":-1,"n":0,"w":64,"s":1,"a":1,"b":174753},"5708":{"t":-1,"n":0,"w":64,"s":3,"a":5,"b":2515525},"5709":{"t":-1,"n":0,"w":64,"s":1,"a":1,"b":346505},"5710":{"t":-1,"n":1,"w":64,"s":2,"a":4,"b":3876801},"5711":{"t":-1,"n":0,"w":1,"s":1,"a":1,"b":194398},"5712":{"t":-1,"n":0,"w":1,"s":2,"a":3,"b":1437231},"5713":{"t":-1,"n":0,"w":1,"s":3,"a":7,"b":3308461},"5714":{"t":-1,"n":1,"w":1,"s":2,"a":3,"b":4420609},"5715":{"t":-1,"n":0,"w":1,"s":1,"a":1,"b":223655},"6083":{"t":-1,"n":1,"w":16,"s":3,"a":6,"b":14884870},"7000":{"t":-3,"n":0,"w":0,"s":0,"a":21,"b":6063404},"7001":{"t":-3,"n":0,"w":0,"s":0,"a":41,"b":2941303},"7002":{"t":-3,"n":0,"w":0,"s":0,"a":63,"b":5286848},"7004":{"t":-3,"n":0,"w":0,"s":0,"a":32,"b":1766440},"7008":{"t":-3,"n":0,"w":0,"s":0,"a":48,"b":3358046},"7013":{"t":-3,"n":0,"w":0,"s":0,"a":153,"b":11362668},"7019":{"t":-3,"n":0,"w":0,"s":0,"a":35,"b":4817616},"7021":{"t":-3,"n":0,"w":0,"s":0,"a":34,"b":1967013},"7025":{"t":-3,"n":0,"w":0,"s":0,"a":34,"b":2029239},"7026":{"t":-3,"n":0,"w":0,"s":0,"a":34,"b":2045430},"7027":{"t":-3,"n":0,"w":0,"s":0,"a":34,"b":1965529},"7028":{"t":-3,"n":0,"w":0,"s":0,"a":34,"b":1953330},"7029":{"t":-3,"n":0,"w":0,"s":0,"a":34,"b":1992051},"7030":{"t":-3,"n":0,"w":0,"s":0,"a":35,"b":2132334},"7031":{"t":-3,"n":0,"w":0,"s":0,"a":34,"b":2032533},"7032":{"t":-3,"n":0,"w":0,"s":0,"a":34,"b":1891387},"7033":{"t":-3,"n":0,"w":0,"s":0,"a":34,"b":1901493},"7034":{"t":-3,"n":0,"w":0,"s":0,"a":33,"b":1854732},"7035":{"t":-3,"n":0,"w":0,"s":0,"a":35,"b":2012832},"7036":{"t":-3,"n":0,"w":0,"s":0,"a":35,"b":2030000},"7037":{"t":-3,"n":0,"w":0,"s":0,"a":34,"b":1811861},"7038":{"t":-3,"n":0,"w":0,"s":0,"a":34,"b":1882203},"7039":{"t":-3,"n":0,"w":0,"s":0,"a":34,"b":1939616},"7040":{"t":-3,"n":0,"w":0,"s":0,"a":33,"b":1893004},"7041":{"t":-3,"n":0,"w":0,"s":0,"a":33,"b":1953914},"7042":{"t":-3,"n":0,"w":0,"s":0,"a":34,"b":2092645},"7043":{"t":-3,"n":0,"w":0,"s":0,"a":33,"b":1868668},"7044":{"t":-3,"n":0,"w":0,"s":0,"a":34,"b":1817238},"7045":{"t":-3,"n":0,"w":0,"s":0,"a":34,"b":1902883},"7046":{"t":-3,"n":0,"w":0,"s":0,"a":33,"b":1895500},"7047":{"t":-3,"n":0,"w":0,"s":0,"a":34,"b":2033422},"7048":{"t":-3,"n":0,"w":0,"s":0,"a":33,"b":1777383},"7049":{"t":-3,"n":0,"w":0,"s":0,"a":5,"b":351948},"7050":{"t":-3,"n":0,"w":0,"s":0,"a":34,"b":1888597},"7056":{"t":-3,"n":0,"w":0,"s":0,"a":67,"b":14398190},"7063":{"t":-3,"n":0,"w":0,"s":0,"a":38,"b":3566694},"7065":{"t":-3,"n":0,"w":0,"s":0,"a":129,"b":8725383},"7067":{"t":-3,"n":0,"w":0,"s":0,"a":47,"b":3777878},"7068":{"t":-3,"n":0,"w":0,"s":0,"a":39,"b":4760192},"7069":{"t":-3,"n":0,"w":0,"s":0,"a":60,"b":5988572},"7070":{"t":-3,"n":0,"w":0,"s":0,"a":10,"b":7386896},"7071":{"t":-3,"n":0,"w":0,"s":0,"a":70,"b":3811344},"7072":{"t":-3,"n":0,"w":0,"s":0,"a":14,"b":5385360},"9000":{"t":-2,"n":0,"w":0,"s":1,"a":6,"b":2724878},"9001":{"t":-2,"n":0,"w":0,"s":1,"a":6,"b":1843447},"9002":{"t":-2,"n":0,"w":0,"s":1,"a":5,"b":853103},"9003":{"t":-2,"n":0,"w":0,"s":1,"a":6,"b":1469791},"9004":{"t":-2,"n":0,"w":0,"s":1,"a":6,"b":1198177},"9005":{"t":-2,"n":0,"w":0,"s":1,"a":3,"b":1003946},"9006":{"t":-2,"n":0,"w":0,"s":1,"a":6,"b":1106769},"9007":{"t":-2,"n":0,"w":0,"s":1,"a":6,"b":1300408},"9008":{"t":-2,"n":0,"w":0,"s":1,"a":6,"b":1451202},"9009":{"t":-2,"n":0,"w":0,"s":1,"a":6,"b":1059301},"9010":{"t":-2,"n":0,"w":0,"s":1,"a":3,"b":937878},"9011":{"t":-2,"n":0,"w":0,"s":1,"a":3,"b":781334},"9012":{"t":-2,"n":0,"w":0,"s":1,"a":5,"b":1063401},"9013":{"t":-2,"n":0,"w":0,"s":3,"a":12,"b":5729141},"9014":{"t":-2,"n":0,"w":0,"s":3,"a":5,"b":3495980},"9027":{"t":-2,"n":0,"w":0,"s":1,"a":3,"b":1127090},"9028":{"t":-2,"n":0,"w":0,"s":1,"a":6,"b":1781334},"9029":{"t":-2,"n":0,"w":0,"s":1,"a":5,"b":1108493},"9030":{"t":-2,"n":0,"w":0,"s":1,"a":6,"b":1407766},"9036":{"t":-2,"n":0,"w":0,"s":1,"a":5,"b":978445},"9037":{"t":-2,"n":0,"w":0,"s":1,"a":3,"b":331851},"9038":{"t":-2,"n":0,"w":0,"s":1,"a":3,"b":383643},"9039":{"t":-2,"n":0,"w":0,"s":1,"a":4,"b":456820},"9040":{"t":-2,"n":0,"w":0,"s":1,"a":4,"b":468884},"9041":{"t":-2,"n":0,"w":0,"s":1,"a":5,"b":674973},"9042":{"t":-2,"n":0,"w":0,"s":1,"a":4,"b":313092},"9043":{"t":-2,"n":0,"w":0,"s":1,"a":4,"b":467220},"9044":{"t":-2,"n":0,"w":0,"s":1,"a":3,"b":594347},"9045":{"t":-2,"n":0,"w":0,"s":1,"a":4,"b":599716},"9046":{"t":-2,"n":0,"w":0,"s":1,"a":4,"b":368004},"9047":{"t":-2,"n":0,"w":0,"s":1,"a":6,"b":1463670},"9048":{"t":-2,"n":0,"w":0,"s":1,"a":6,"b":1378598},"9049":{"t":-2,"n":0,"w":0,"s":1,"a":6,"b":1826422},"9050":{"t":-2,"n":0,"w":0,"s":1,"a":3,"b":778011},"9051":{"t":-2,"n":0,"w":0,"s":1,"a":6,"b":1166854},"9052":{"t":-2,"n":0,"w":0,"s":1,"a":6,"b":1704950},"9053":{"t":-2,"n":0,"w":0,"s":1,"a":6,"b":1985958},"9054":{"t":-2,"n":0,"w":0,"s":1,"a":5,"b":4470032},"9057":{"t":-2,"n":0,"w":0,"s":1,"a":3,"b":419216},"9058":{"t":-2,"n":0,"w":0,"s":1,"a":3,"b":417968},"9059":{"t":-2,"n":0,"w":0,"s":1,"a":3,"b":605168},"9060":{"t":-2,"n":0,"w":0,"s":1,"a":3,"b":1227296},"9061":{"t":-2,"n":0,"w":0,"s":1,"a":4,"b":1916640}}};
+  const META_ITEMS = CONTENT_META.items || {};
+  const META_THR = CONTENT_META.thresholdBytes || 1510980;
+  const WEEKDAYS = CONTENT_META.weekdayBits || ['Вс','Пн','Вт','Ср','Чт','Пт','Сб'];
+
+  const SVC = '6e400001-b5a3-f393-e0a9-e50e24dcca9e';
+  const RX  = '6e400002-b5a3-f393-e0a9-e50e24dcca9e';
+  const TX  = '6e400003-b5a3-f393-e0a9-e50e24dcca9e';
+  const TIMEOUTS = { PAIR: 21000, LIST: 10000, WLST: 15000, FLST: 10000 };
+  const KEEPALIVE_MS = 10000;
+  const PLAYLIST_POLL_MS = 3000;
+  const INFO_REFRESH_MS = 60000;
+  const RECONNECT_DELAYS = [1000, 2000, 4000, 8000, 15000, 30000];
+  const DEF_TODAY = '5686 5687 5688 5690', DEF_NIGHT = '5689';
+  const RECENT_MAX = 10;
+  const $ = id => document.getElementById(id);
+  const LS = { get: (k, d) => { const v = localStorage.getItem('mishka.' + k); return v === null ? (d || '') : v; }, set: (k, v) => localStorage.setItem('mishka.' + k, v) };
+
+  let device = null, rxChar = null, txChar = null, connected = false, authed = false;
+  let userDisconnect = false, reconnecting = false;
+  const parser = P.createParser();
+  const queue = []; let current = null; let lastTx = 0; let lastInfoAt = 0;
+  const dec = new TextDecoder(), enc = new TextEncoder();
+  let kaTimer = null; let sniffBuf = '';
+  let playlist = null;
+  let names = {};
+  try { names = P.parseNames(LS.get('names', '{}')); } catch (e) { names = {}; }
+  let tagsMap = {};
+  try { tagsMap = P.normalizeTagsMap(JSON.parse(LS.get('tags', '{}') || '{}')); } catch (e) { tagsMap = {}; }
+  let listView = LS.get('listView', 'type') || 'type'; // type | tags
+  let filterDay = LS.get('filterDay', '') || ''; // '' or bit number as string
+  let filterLen = LS.get('filterLen', 'all') || 'all'; // all|short|long
+  let filterTag = LS.get('filterTag', '') || '';
+  let editId = null;
+  let favs = [];
+  try { favs = P.normalizeIdList(JSON.parse(LS.get('favs', '[]') || '[]')); } catch (e) { favs = []; }
+  let recent = [];
+  try { recent = P.normalizeIdList(JSON.parse(LS.get('recent', '[]') || '[]'), RECENT_MAX); } catch (e) { recent = []; }
+  let deviceFavs = []; // from FLST, in-memory (+ cache)
+  try { deviceFavs = P.normalizeIdList(JSON.parse(LS.get('deviceFavs', '[]') || '[]')); } catch (e) { deviceFavs = []; }
+  const nm = id => names[String(id)] || '';
+  const lbl = id => P.label(names, id);
+  const isLocalFav = id => favs.indexOf(String(id)) !== -1;
+  const isDevFav = id => deviceFavs.indexOf(String(id)) !== -1;
+  const isFav = id => isLocalFav(id) || isDevFav(id);
+  let lastList = [], lastPlayer = null;
+  let syncDevFavs = LS.get('syncDevFavs') === '1';
+
+  function log(cls, text, quiet) {
+    const el = $('log'); const d = document.createElement('div'); d.className = cls + (quiet ? ' ka' : '');
+    const t = new Date().toLocaleTimeString('ru-RU');
+    d.textContent = t + ' ' + (cls === 'tx' ? '→ ' : cls === 'rx' ? '← ' : '• ') + text.replace(/\r?\n/g, '⏎');
+    el.appendChild(d);
+    while (el.childNodes.length > 600) el.removeChild(el.firstChild);
+    el.scrollTop = el.scrollHeight;
+  }
+  function status(text, cls) { const s = $('status'); s.textContent = text; s.className = cls || 'muted'; }
+  function setEnabled() {
+    document.querySelectorAll('.need').forEach(b => b.disabled = !connected);
+    $('btnConnect').textContent = (connected || reconnecting) ? 'Отключиться' : 'Подключиться к Мишке';
+  }
+  const ids = str => String(str || '').split(/[\s,;]+/).filter(x => /^\d+$/.test(x));
+
+  function send(cmd, args, opts) {
+    opts = opts || {};
+    return new Promise((resolve, reject) => {
+      let frame;
+      try { frame = P.buildFrame(cmd, args); } catch (e) { reject(e); return; }
+      const C = cmd.toUpperCase();
+      queue.push({ cmd: C, frame, resolve, reject, quiet: !!opts.quiet, timeout: opts.timeout || TIMEOUTS[C] || 6000 });
+      pump();
+    });
+  }
+  async function pump() {
+    if (current || !queue.length) return;
+    if (!connected) { while (queue.length) queue.shift().reject(new Error('Мишка не подключён')); return; }
+    current = queue.shift();
+    const c = current;
+    log('tx', c.frame.trimEnd(), c.quiet);
+    lastTx = Date.now();
+    c.timer = setTimeout(() => { if (current === c) { current = null; c.reject(new Error(c.cmd + ': нет ответа (таймаут)')); pump(); } }, c.timeout);
+    try { await writeBytes(enc.encode(c.frame)); }
+    catch (e) { clearTimeout(c.timer); if (current === c) current = null; c.reject(e); pump(); }
+  }
+  async function writeBytes(bytes) {
+    const CH = 20;
+    for (let i = 0; i < bytes.length; i += CH) {
+      const part = bytes.slice(i, i + CH);
+      if (rxChar.writeValueWithoutResponse) await rxChar.writeValueWithoutResponse(part);
+      else await rxChar.writeValue(part);
+    }
+  }
+  function onNotify(ev) {
+    const text = dec.decode(ev.target.value);
+    log('rx', text, !!(current && current.quiet));
+    sniffBuf = (sniffBuf + text).slice(-600);
+    if (/night\s+\d+/i.test(sniffBuf)) { sniffToday(sniffBuf); sniffBuf = ''; }
+    for (const r of parser.push(text)) handleResponse(r);
+  }
+  function handleResponse(r) {
+    const c = current;
+    if (!c) { log('sys', 'Сообщение без запроса: ' + r.raw.replace(/\n/g, ' ')); return; }
+    if (r.status === 'UNKN' || r.status === 'NAUT' || r.cmd === c.cmd) {
+      clearTimeout(c.timer); current = null;
+      if (r.status === 'NAUT') c.reject(Object.assign(new Error('NAUT: Мишка требует авторизацию'), { naut: true }));
+      else if (r.status === 'UNKN') c.reject(Object.assign(new Error('UNKN: неизвестная команда'), { unkn: true }));
+      else c.resolve(P.interpret(r.cmd, r.lines));
+      pump();
+    } else {
+      log('sys', 'Ответ на другую команду (' + r.cmd + '), жду ' + c.cmd);
+    }
+  }
+  function sniffToday(text) {
+    const t = /today\s+([\d\s]+)/i.exec(text), n = /night\s+([\d\s]+)/i.exec(text);
+    if (t && ids(t[1]).length) { const v = ids(t[1]).join(' '); $('todayList').value = v; LS.set('today', v); log('sys', 'Мишка сообщил сказки дня: ' + v); }
+    if (n && ids(n[1]).length) { const v = ids(n[1]).join(' '); $('nightList').value = v; LS.set('night', v); log('sys', 'Мишка сообщил ночную сказку: ' + v); }
+    if (t || n) renderToday();
+  }
+
+  async function connect() {
+    if (!navigator.bluetooth) { showNoBt(); return; }
+    try {
+      status('Выбор устройства…');
+      device = await navigator.bluetooth.requestDevice({ filters: [{ namePrefix: 'MISHKA-' }], optionalServices: [SVC] });
+      device.addEventListener('gattserverdisconnected', onDisconnected);
+      userDisconnect = false;
+      status('Подключение к ' + (device.name || 'Мишке') + '…');
+      await openGatt();
+      await afterConnect();
+    } catch (e) {
+      log('sys', 'Ошибка подключения: ' + e.message); status('Не удалось подключиться: ' + e.message, 'err');
+    }
+  }
+  async function openGatt() {
+    const server = await device.gatt.connect();
+    const svc = await server.getPrimaryService(SVC);
+    rxChar = await svc.getCharacteristic(RX);
+    txChar = await svc.getCharacteristic(TX);
+    await txChar.startNotifications();
+    txChar.addEventListener('characteristicvaluechanged', onNotify);
+    parser.reset(); connected = true; setEnabled();
+    log('sys', 'Подключено: ' + (device.name || ''));
+    startKeepalive();
+  }
+  async function afterConnect(isReconnect) {
+    authed = false;
+    const token = LS.get('token');
+    if (token) {
+      try { const r = await send('AUTH', [token]); authed = r.code === 0; log('sys', authed ? 'Авторизация OK' : 'AUTH вернул код ' + r.code); }
+      catch (e) { log('sys', 'AUTH: ' + e.message); }
+    }
+    try {
+      await refreshInfo();
+      status('Подключено' + (authed ? ' и авторизовано' : '') + (isReconnect ? ' (переподключились)' : ''), 'ok');
+      if (!isReconnect) await setTime();
+      await refreshPlayer();
+      await refreshDeviceFavs(true);
+    } catch (e) {
+      if (e.naut) { status(token ? 'Мишка не принял токен (NAUT). Сделай сопряжение в Настройках.' : 'Нужна авторизация (NAUT). Открой «Настройки» и сделай сопряжение (PAIR) или введи токен.', 'err'); $('settings').open = true; }
+      else status('Подключено, но ошибка: ' + e.message, 'err');
+    }
+  }
+  function dropState(reason) {
+    connected = false; authed = false; stopKeepalive();
+    if (current) { clearTimeout(current.timer); current.reject(new Error(reason)); current = null; }
+    while (queue.length) queue.shift().reject(new Error(reason));
+    setEnabled();
+  }
+  function onDisconnected() {
+    dropState('Отключено');
+    log('sys', 'Соединение разорвано');
+    if (userDisconnect || !device) { status('Отключено', 'muted'); return; }
+    reconnect();
+  }
+  async function reconnect() {
+    if (reconnecting) return;
+    reconnecting = true; setEnabled();
+    for (let i = 0; i < RECONNECT_DELAYS.length; i++) {
+      if (userDisconnect) break;
+      const d = RECONNECT_DELAYS[i];
+      status('Связь потеряна. Переподключение ' + (i + 1) + '/' + RECONNECT_DELAYS.length + ' через ' + Math.round(d / 1000) + ' с…', 'err');
+      await new Promise(r => setTimeout(r, d));
+      if (userDisconnect) break;
+      try {
+        status('Переподключение ' + (i + 1) + '/' + RECONNECT_DELAYS.length + '…', 'muted');
+        await openGatt();
+        reconnecting = false; setEnabled();
+        await afterConnect(true);
+        return;
+      } catch (e) { log('sys', 'Попытка ' + (i + 1) + ' не удалась: ' + e.message); }
+    }
+    reconnecting = false; setEnabled();
+    status(userDisconnect ? 'Отключено' : 'Не удалось переподключиться. Включи Мишку и нажми «Подключиться».', userDisconnect ? 'muted' : 'err');
+  }
+  function disconnectByUser() {
+    userDisconnect = true; playlist = null; renderPlaylist();
+    if (device && device.gatt.connected) device.gatt.disconnect(); else { dropState('Отключено'); reconnecting = false; setEnabled(); status('Отключено', 'muted'); }
+  }
+  function showNoBt() {
+    const ios = /iPhone|iPad|iPod/.test(navigator.userAgent);
+    $('nobt').style.display = 'block';
+    $('nobt').textContent = ios
+      ? 'В этом браузере нет Web Bluetooth. На iPhone Chrome и Safari его не поддерживают — открой эту страницу в приложении Bluefy (App Store).'
+      : 'В этом браузере нет Web Bluetooth. Используй Chrome или Edge на компьютере/Android, страница должна быть открыта по https:// (или localhost).';
+  }
+
+  function startKeepalive() { stopKeepalive(); kaTimer = setInterval(keepaliveTick, 1000); }
+  function stopKeepalive() { if (kaTimer) clearInterval(kaTimer); kaTimer = null; }
+  function keepaliveTick() {
+    if (!connected || current || queue.length) return;
+    // Во время плейлиста только SPLR — INFO не мешает опросу состояния.
+    if (playlist) {
+      if (Date.now() - lastTx >= PLAYLIST_POLL_MS) refreshPlayer(true);
+      return;
+    }
+    if (Date.now() - lastInfoAt >= INFO_REFRESH_MS) { refreshInfo(true).catch(() => {}); return; }
+    if (Date.now() - lastTx >= KEEPALIVE_MS) refreshPlayer(true);
+  }
+
+  function renderBattery(i) {
+    const mv = i && i.battery;
+    const pct = P.batteryPercent(mv);
+    const lvl = P.batteryLevel(pct);
+    const batEl = $('iBat'), hdr = $('hdrBat'), pctEl = $('hdrBatPct'), mvEl = $('hdrBatMv'), warn = $('batWarn');
+    if (pct == null) {
+      batEl.textContent = '—';
+      pctEl.textContent = '—'; mvEl.textContent = '';
+      hdr.className = 'unknown'; hdr.title = 'Батарея неизвестна';
+      warn.classList.remove('show');
+      return;
+    }
+    const mvTxt = (isFinite(mv) && mv > 100) ? (' · ' + Math.round(mv) + ' мВ') : '';
+    batEl.textContent = pct + '%' + mvTxt;
+    pctEl.textContent = pct + '%';
+    mvEl.textContent = (isFinite(mv) && mv > 100) ? Math.round(mv) + ' мВ' : '';
+    hdr.className = lvl;
+    hdr.title = 'Батарея ' + pct + '%' + (isFinite(mv) ? (' (' + Math.round(mv) + (mv > 100 ? ' мВ' : '') + ')') : '');
+    if (lvl === 'low') warn.classList.add('show'); else warn.classList.remove('show');
+  }
+
+  async function refreshInfo(quiet) {
+    try {
+      const i = await send('INFO', [], { quiet: !!quiet });
+      lastInfoAt = Date.now();
+      renderBattery(i);
+      $('iVol').textContent = isNaN(i.volume) ? '—' : i.volume;
+      // charge — 5-е поле INFO в приложении; показываем только если реально пришло
+      if (i.charge === undefined || isNaN(i.charge)) $('iChg').textContent = '—';
+      else $('iChg').textContent = i.charge ? 'да' : 'нет';
+      $('iFw').textContent = isNaN(i.firmware) ? '—' : i.firmware;
+      if (!isNaN(i.volume)) { $('vol').value = i.volume; $('volVal').textContent = i.volume; }
+    } catch (e) {
+      if (!quiet) throw e;
+      log('sys', 'INFO: ' + e.message);
+    }
+  }
+  async function refreshPlayer(quiet) {
+    try {
+      const p = await send('SPLR', [], { quiet: !!quiet });
+      lastPlayer = p; renderPlayer();
+      onPlayerState(p);
+    } catch (e) { if (!quiet) $('iPlr').textContent = '—'; }
+  }
+  function renderPlayer() {
+    const p = lastPlayer; if (!p) return;
+    const has = p.content && p.content !== '0';
+    $('iPlr').textContent = p.stateName + (has ? ': ' + lbl(p.content) : '');
+  }
+  async function setTime() {
+    const t = P.timeArgs();
+    await send('STMZ', t.stmz);
+    await send('STIM', t.stim);
+    log('sys', 'Время выставлено: ' + t.stim.join(' ') + ', пояс ' + t.stmz[0]);
+  }
+  function pushRecent(id) {
+    id = String(id);
+    recent = P.normalizeIdList([id].concat(recent.filter(x => x !== id)), RECENT_MAX);
+    LS.set('recent', JSON.stringify(recent));
+    renderFavRecent();
+  }
+  async function play(id, fromPlaylist) {
+    id = String(id).trim(); if (!/^\d+$/.test(id)) { alert('Нужен числовой id'); return false; }
+    if (!fromPlaylist && playlist) { playlist = null; renderPlaylist(); }
+    try {
+      const r = await send('STRT', [id]);
+      if (r.code === 0) {
+        log('sys', 'Играет ' + lbl(id));
+        pushRecent(id);
+        setTimeout(() => refreshPlayer(true), 1500);
+        return true;
+      }
+      const msg = 'Не удалось запустить ' + lbl(id) + ': ' + (P.STRT_ERR[r.code] || 'код ' + r.code);
+      if (fromPlaylist) log('sys', msg); else alert(msg);
+    } catch (e) { if (fromPlaylist) log('sys', e.message); else alert(e.message); }
+    return false;
+  }
+
+  function saveFavs() { LS.set('favs', JSON.stringify(favs)); renderAllNames(); }
+  function saveDeviceFavsCache() { LS.set('deviceFavs', JSON.stringify(deviceFavs)); }
+
+  async function refreshDeviceFavs(quiet) {
+    try {
+      const r = await send('FLST', [], { quiet: !!quiet });
+      deviceFavs = P.normalizeIdList(r.items || []);
+      saveDeviceFavsCache();
+      log('sys', 'Избранное на Мишке (FLST): ' + (deviceFavs.length ? deviceFavs.map(lbl).join(', ') : 'пусто'));
+      renderAllNames();
+    } catch (e) {
+      if (e.unkn) log('sys', 'FLST не поддерживается этой прошивкой');
+      else if (!quiet) log('sys', 'FLST: ' + e.message);
+    }
+  }
+
+  async function toggleFav(id) {
+    id = String(id);
+    const wantOn = !isLocalFav(id);
+    if (wantOn) {
+      if (favs.indexOf(id) === -1) favs = favs.concat([id]);
+    } else {
+      favs = favs.filter(x => x !== id);
+    }
+    saveFavs();
+    log('sys', wantOn ? 'В избранное пульта: ' + lbl(id) : 'Убрано из избранного пульта: ' + lbl(id));
+    if (!syncDevFavs) return;
+    if (!connected) { log('sys', 'Нет связи — на Мишку не записали'); return; }
+    try {
+      if (wantOn) {
+        const r = await send('FADD', [id]);
+        if (r.code === 0) {
+          if (deviceFavs.indexOf(id) === -1) deviceFavs = deviceFavs.concat([id]);
+          saveDeviceFavsCache(); renderAllNames();
+          log('sys', 'FADD ок: ' + lbl(id));
+        } else {
+          alert('Мишка не принял в избранное: ' + (P.FADD_ERR[r.code] || ('код ' + r.code)));
+        }
+      } else {
+        const r = await send('FREM', [id]);
+        if (r.code === 0) {
+          deviceFavs = deviceFavs.filter(x => x !== id);
+          saveDeviceFavsCache(); renderAllNames();
+          log('sys', 'FREM ок: ' + lbl(id));
+        } else {
+          alert('Не удалось убрать с Мишки: ' + (P.FREM_ERR[r.code] || ('код ' + r.code)));
+        }
+      }
+    } catch (e) { alert('Запись избранного на Мишку: ' + e.message); }
+  }
+
+
+  function metaOf(id) { return META_ITEMS[String(id)] || null; }
+  function categoryOf(id) {
+    const m = metaOf(id);
+    if (!m) return 'Без категории';
+    if (m.t === -1 && m.n) return 'Ночные сказки';
+    if (m.t === -1) return 'Дневные сказки';
+    if (m.t === -3) return 'Игры';
+    if (m.t === -2) return 'Другое';
+    if (m.t === 0 || m.t === 1) return 'Системные';
+    return 'Тип ' + m.t;
+  }
+  function lenHint(id) {
+    const m = metaOf(id); if (!m || !m.b) return '';
+    return m.b < META_THR ? 'короткая' : 'длинная';
+  }
+  function dayNames(mask) {
+    if (!mask) return '';
+    const parts = [];
+    for (let b = 0; b < 7; b++) if (mask & (1 << b)) parts.push(WEEKDAYS[b]);
+    return parts.join(', ');
+  }
+  function passFilters(id) {
+    const m = metaOf(id);
+    if (filterDay !== '') {
+      const bit = parseInt(filterDay, 10);
+      if (!m || !(m.w & (1 << bit))) return false;
+    }
+    if (filterLen === 'short') { if (!m || !m.b || m.b >= META_THR) return false; }
+    if (filterLen === 'long') { if (!m || !m.b || m.b < META_THR) return false; }
+    if (listView === 'tags' && filterTag) {
+      const ts = tagsMap[String(id)] || [];
+      if (!ts.some(t => t.toLowerCase() === filterTag.toLowerCase())) return false;
+    }
+    return true;
+  }
+  function itemTags(id) { return tagsMap[String(id)] || []; }
+
+  // Чип: ⭐ | play | ✏️. Долгое нажатие на play — переименовать.
+  function chip(prefix, id, cls, onclick, opts) {
+    opts = opts || {};
+    const w = document.createElement('span'); w.className = 'chipw' + (opts.noStar ? ' nostar' : '');
+    if (!opts.noStar) {
+      const star = document.createElement('button');
+      star.className = 'star' + (isLocalFav(id) ? ' on' : '');
+      star.textContent = isLocalFav(id) ? '★' : '☆';
+      star.title = isLocalFav(id) ? 'Убрать из избранного пульта' : 'В избранное пульта';
+      star.setAttribute('aria-label', 'Избранное ' + id);
+      star.onclick = e => { e.stopPropagation(); toggleFav(id); };
+      w.appendChild(star);
+    }
+    const b = document.createElement('button'); b.className = 'chip ' + (cls || '');
+    const n = nm(id);
+    b.textContent = (prefix || '') + (n || id);
+    if (n) { const s = document.createElement('small'); s.className = 'cid'; s.textContent = ' ' + id; b.appendChild(s); }
+    const lh = lenHint(id); if (lh) { const s = document.createElement('small'); s.className = 'lenhint'; s.textContent = ' · ' + lh; b.appendChild(s); }
+    itemTags(id).slice(0, 3).forEach(t => { const s = document.createElement('span'); s.className = 'tagpill'; s.textContent = t; b.appendChild(s); });
+    if (opts.devBadge || isDevFav(id)) {
+      const badge = document.createElement('small'); badge.className = 'badge'; badge.textContent = ' на мишке'; b.appendChild(badge);
+    }
+    b.title = 'Играть ' + lbl(id) + ' (долгое нажатие — переименовать)';
+    let lp = null, long = false;
+    const startLp = () => { long = false; lp = setTimeout(() => { long = true; rename(id); }, 600); };
+    const endLp = () => clearTimeout(lp);
+    b.addEventListener('touchstart', startLp, { passive: true }); b.addEventListener('touchend', endLp); b.addEventListener('touchmove', endLp); b.addEventListener('touchcancel', endLp);
+    b.addEventListener('mousedown', startLp); b.addEventListener('mouseup', endLp); b.addEventListener('mouseleave', endLp);
+    b.addEventListener('contextmenu', e => e.preventDefault());
+    b.onclick = e => { if (long) { long = false; e.preventDefault(); return; } (onclick || (() => play(id)))(); };
+    const pen = document.createElement('button'); pen.className = 'pen'; pen.textContent = '✏️'; pen.title = 'Переименовать'; pen.setAttribute('aria-label', 'Переименовать ' + id);
+    pen.onclick = () => rename(id);
+    w.appendChild(b); w.appendChild(pen); return w;
+  }
+  function saveNames() { LS.set('names', JSON.stringify(names)); renderAllNames(); }
+  function rename(id) { openEdit(id); }
+  function openEdit(id) {
+    editId = String(id);
+    $('editTitle').textContent = 'Сказка ' + editId;
+    $('editName').value = nm(editId);
+    renderEditTagPills();
+    $('editTags').value = '';
+    renderEditSuggest();
+    $('editModal').classList.add('show');
+    setTimeout(() => $('editName').focus(), 50);
+  }
+  function closeEdit() { $('editModal').classList.remove('show'); editId = null; }
+  function renderEditTagPills() {
+    const box = $('editTagPills'); box.innerHTML = '';
+    itemTags(editId).forEach(t => {
+      const s = document.createElement('span'); s.className = 'itag'; s.textContent = t + ' ';
+      const x = document.createElement('button'); x.type = 'button'; x.textContent = '×'; x.onclick = () => {
+        tagsMap = P.setItemTags(tagsMap, editId, itemTags(editId).filter(z => z.toLowerCase() !== t.toLowerCase()));
+        LS.set('tags', JSON.stringify(tagsMap)); renderEditTagPills(); renderEditSuggest();
+      };
+      s.appendChild(x); box.appendChild(s);
+    });
+  }
+  function renderEditSuggest() {
+    const box = $('editSuggest'); box.innerHTML = '';
+    const have = new Set(itemTags(editId).map(t => t.toLowerCase()));
+    const q = ($('editTags').value || '').trim().toLowerCase();
+    P.allTagNames(tagsMap).filter(t => !have.has(t.toLowerCase()) && (!q || t.toLowerCase().includes(q))).slice(0, 12).forEach(t => {
+      const b = document.createElement('button'); b.type = 'button'; b.textContent = t;
+      b.onclick = () => {
+        tagsMap = P.setItemTags(tagsMap, editId, itemTags(editId).concat([t]));
+        LS.set('tags', JSON.stringify(tagsMap)); renderEditTagPills(); renderEditSuggest();
+      };
+      box.appendChild(b);
+    });
+  }
+  function addTagsFromInput() {
+    const raw = $('editTags').value || '';
+    const parts = raw.split(/[,;]+/).map(s => s.trim()).filter(Boolean);
+    if (!parts.length) return;
+    tagsMap = P.setItemTags(tagsMap, editId, itemTags(editId).concat(parts));
+    LS.set('tags', JSON.stringify(tagsMap));
+    $('editTags').value = '';
+    renderEditTagPills(); renderEditSuggest();
+  }
+  function saveEdit() {
+    if (!editId) return;
+    try {
+      names = P.setName(names, editId, $('editName').value);
+      addTagsFromInput();
+      LS.set('names', JSON.stringify(names));
+      LS.set('tags', JSON.stringify(tagsMap));
+      log('sys', 'Сохранено: ' + lbl(editId) + (itemTags(editId).length ? ' [' + itemTags(editId).join(', ') + ']' : ''));
+      closeEdit(); renderAllNames();
+    } catch (e) { alert(e.message); }
+  }
+  function renderAllNames() { renderToday(); renderListChips(); renderPlayer(); renderPlaylistText(); renderNamesSection(); renderFavRecent(); renderTagManager(); renderDayFilters(); renderTagFilters(); updateViewTabs(); }
+  function renderFavRecent() {
+    const fb = $('favChips'); fb.innerHTML = '';
+    // merged: local first, then device-only
+    const seen = Object.create(null);
+    const merged = [];
+    favs.forEach(id => { if (!seen[id]) { seen[id] = 1; merged.push(id); } });
+    deviceFavs.forEach(id => { if (!seen[id]) { seen[id] = 1; merged.push(id); } });
+    if (!merged.length) {
+      fb.innerHTML = '<p class="muted" style="margin:0">Пока пусто. Нажми ☆ у любой сказки.</p>';
+    } else {
+      merged.forEach(id => fb.appendChild(chip('', id, isDevFav(id) ? 'today' : '', null, { devBadge: isDevFav(id) })));
+    }
+    const rb = $('recentChips'); rb.innerHTML = '';
+    if (!recent.length) rb.innerHTML = '<p class="muted" style="margin:0">Появятся после запуска сказки из пульта.</p>';
+    else recent.forEach(id => rb.appendChild(chip('', id, '')));
+  }
+  function renderNamesSection() {
+    const box = $('namesList'); if (!box) return; box.innerHTML = '';
+    const keys = Object.keys(names).sort((x, y) => (+x) - (+y));
+    if (!keys.length) { box.innerHTML = '<p class="muted">Пока нет названий. Нажми ✏️ рядом с любой сказкой.</p>'; return; }
+    keys.forEach(id => {
+      const r = document.createElement('div'); r.className = 'namerow';
+      const t = document.createElement('span'); t.className = 'nametext'; t.textContent = names[id] + ' '; const s = document.createElement('small'); s.className = 'cid'; s.textContent = id; t.appendChild(s);
+      const e = document.createElement('button'); e.className = 'sec small'; e.textContent = '✏️'; e.onclick = () => rename(id);
+      const d = document.createElement('button'); d.className = 'sec small'; d.textContent = '🗑'; d.onclick = () => { if (confirm('Удалить название «' + names[id] + '» для ' + id + '?')) { names = P.setName(names, id, ''); saveNames(); } };
+      r.appendChild(t); r.appendChild(e); r.appendChild(d); box.appendChild(r);
+    });
+  }
+  function exportBundle() {
+    const txt = P.exportData({ names, favs, recent, tags: tagsMap });
+    $('namesJson').value = txt;
+    try {
+      const url = URL.createObjectURL(new Blob([txt], { type: 'application/json' }));
+      const a = document.createElement('a'); a.href = url; a.download = 'mishka-pult.json'; document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 2000);
+    } catch (e) { /* текст уже в поле */ }
+    log('sys', 'Экспорт: названий ' + Object.keys(names).length + ', избранных ' + favs.length + ', недавних ' + recent.length + ', с метками ' + Object.keys(tagsMap).length);
+  }
+  async function copyBundle() {
+    const txt = P.exportData({ names, favs, recent, tags: tagsMap }); $('namesJson').value = txt;
+    try { await navigator.clipboard.writeText(txt); alert('Скопировано в буфер обмена'); }
+    catch (e) { $('namesJson').select(); alert('Не удалось скопировать автоматически — текст выделен в поле, скопируй вручную'); }
+  }
+  function importBundleText(txt) {
+    let inc;
+    try { inc = P.parseExport(txt); } catch (e) {
+      try { inc = { names: P.parseNames(txt), favs: [], recent: [], tags: {} }; } catch (e2) { alert('Не удалось прочитать JSON: ' + e.message); return; }
+    }
+    if (!inc.tags) inc.tags = {};
+    const n = Object.keys(inc.names).length, f = inc.favs.length, r = inc.recent.length, tg = Object.keys(inc.tags).length;
+    if (!n && !f && !r && !tg) { alert('В файле нет названий, избранного, недавних и меток'); return; }
+    const replace = confirm('Найдено: названий ' + n + ', избранных ' + f + ', недавних ' + r + ', с метками ' + tg + '.\nОК — заменить текущие, Отмена — добавить к текущим.');
+    if (replace) {
+      names = inc.names;
+      if (f || txt.indexOf('"favs"') !== -1) favs = inc.favs;
+      if (r || txt.indexOf('"recent"') !== -1) recent = inc.recent;
+      if (tg || txt.indexOf('"tags"') !== -1) tagsMap = inc.tags;
+    } else {
+      names = Object.assign({}, names, inc.names);
+      favs = P.normalizeIdList(favs.concat(inc.favs));
+      recent = P.normalizeIdList(inc.recent.concat(recent), RECENT_MAX);
+      Object.keys(inc.tags).forEach(id => {
+        tagsMap = P.setItemTags(tagsMap, id, (tagsMap[id] || []).concat(inc.tags[id] || []));
+      });
+    }
+    LS.set('names', JSON.stringify(names));
+    LS.set('favs', JSON.stringify(favs));
+    LS.set('recent', JSON.stringify(recent));
+    LS.set('tags', JSON.stringify(tagsMap));
+    renderAllNames();
+    log('sys', 'Импорт: названий ' + n + ', избранных ' + f + ', недавних ' + r + ', меток у ' + tg + ' id');
+  }
+  function renderToday() {
+    const box = $('todayChips'); box.innerHTML = '';
+    const t = ids($('todayList').value), n = ids($('nightList').value);
+    t.forEach((id, i) => { const cur = playlist && playlist.idx === i; box.appendChild(chip(cur ? '▶ ' : '', id, 'today', () => startPlaylist(i))); });
+    n.forEach(id => box.appendChild(chip('🌙 ', id, 'night')));
+    const ni = n[0]; $('btnNight').textContent = '🌙 Ночная сказка' + (ni && nm(ni) ? ': ' + nm(ni) : '');
+  }
+  function renderPlaylistText() {
+    const el = $('plStatus');
+    if (!playlist) el.textContent = '';
+    else el.textContent = 'Плейлист дня: ' + (playlist.idx + 1) + ' из ' + playlist.ids.length + ' — ' + lbl(playlist.ids[playlist.idx]) + '. Следующая включится сама. Стоп — остановить плейлист.';
+  }
+  function renderPlaylist() { renderPlaylistText(); renderToday(); }
+  async function startPlaylist(from) {
+    const list = ids($('todayList').value);
+    if (!list.length) { alert('Список сказок дня пуст. Впиши id в Настройках.'); $('settings').open = true; return; }
+    playlist = { ids: list, idx: from || 0, sawPlaying: false, startedAt: Date.now() };
+    renderPlaylist();
+    await playCurrentOfPlaylist();
+  }
+  async function playCurrentOfPlaylist() {
+    while (playlist && playlist.idx < playlist.ids.length) {
+      playlist.sawPlaying = false; playlist.startedAt = Date.now(); renderPlaylist();
+      if (await play(playlist.ids[playlist.idx], true)) return;
+      playlist.idx++;
+    }
+    if (playlist) { log('sys', 'Плейлист дня закончился'); playlist = null; renderPlaylist(); }
+  }
+  function onPlayerState(p) {
+    if (!playlist) return;
+    if (p.state === 2 || p.state === 1) playlist.sawPlaying = true;
+    const stale = !playlist.sawPlaying && Date.now() - playlist.startedAt > 20000;
+    if (p.state === 0 && (playlist.sawPlaying || stale)) { playlist.idx++; playCurrentOfPlaylist(); }
+  }
+  async function simple(cmd, okText) {
+    if (cmd === 'STOP' && playlist) { playlist = null; renderPlaylist(); }
+    try { const r = await send(cmd); if (r.code === 0) log('sys', okText); else log('sys', cmd + ': ' + (r.code === 1 ? (cmd === 'RSME' ? 'нечего возобновлять' : 'нечего останавливать') : 'код ' + r.code)); refreshPlayer(true); }
+    catch (e) { alert(e.message); }
+  }
+  let volTimer = null;
+  function onVol() {
+    const v = parseInt($('vol').value, 10); $('volVal').textContent = v;
+    clearTimeout(volTimer);
+    volTimer = setTimeout(async () => { try { const r = await send('SVOL', [String(v)]); if (r.code === 0) $('iVol').textContent = v; } catch (e) { log('sys', 'SVOL: ' + e.message); } }, 300);
+  }
+  async function loadList() {
+    try {
+      const r = await send('LIST');
+      lastList = ids(r.items.join(' '));
+      LS.set('lastList', lastList.join(' '));
+      renderListChips();
+      log('sys', 'LIST: ' + lastList.length + ' шт.');
+    } catch (e) { alert('LIST: ' + e.message); }
+  }
+  function renderListChips() {
+    const box = $('listChips'); box.innerHTML = '';
+    const t = ids($('todayList').value), n = ids($('nightList').value);
+    const named = $('onlyNamed') && $('onlyNamed').checked;
+    let list = lastList.filter(id => (!named || nm(id)) && passFilters(id));
+    if (!lastList.length) { box.innerHTML = '<p class="muted">Нажми «Загрузить список (LIST)».</p>'; return; }
+    if (!list.length) { box.innerHTML = '<p class="muted">Ничего не подошло под фильтр.</p>'; return; }
+    const chipCls = id => t.includes(id) ? 'today' : n.includes(id) ? 'night' : '';
+
+    if (listView === 'tags') {
+      // group by tag; untagged at end
+      const byTag = {};
+      const untagged = [];
+      list.forEach(id => {
+        const ts = itemTags(id);
+        if (!ts.length) untagged.push(id);
+        else ts.forEach(tag => { (byTag[tag] = byTag[tag] || []).push(id); });
+      });
+      const tagNames = Object.keys(byTag).sort((a, b) => a.localeCompare(b, 'ru'));
+      if (filterTag) {
+        // already filtered to one tag
+        const wrap = document.createElement('div'); wrap.className = 'chips';
+        list.forEach(id => wrap.appendChild(chip('', id, chipCls(id))));
+        box.appendChild(wrap);
+        return;
+      }
+      tagNames.forEach(tag => {
+        const det = document.createElement('details'); det.className = 'cat'; det.open = true;
+        const sum = document.createElement('summary');
+        sum.innerHTML = '<span>🏷 ' + tag + '</span><span class="count">' + byTag[tag].length + '</span>';
+        const body = document.createElement('div'); body.className = 'catbody chips';
+        // unique ids in this tag group
+        const seen = Object.create(null);
+        byTag[tag].forEach(id => { if (!seen[id]) { seen[id] = 1; body.appendChild(chip('', id, chipCls(id))); } });
+        det.appendChild(sum); det.appendChild(body); box.appendChild(det);
+      });
+      if (untagged.length) {
+        const det = document.createElement('details'); det.className = 'cat'; det.open = true;
+        const sum = document.createElement('summary');
+        sum.innerHTML = '<span>Без метки</span><span class="count">' + untagged.length + '</span>';
+        const body = document.createElement('div'); body.className = 'catbody chips';
+        untagged.forEach(id => body.appendChild(chip('', id, chipCls(id))));
+        det.appendChild(sum); det.appendChild(body); box.appendChild(det);
+      }
+      return;
+    }
+
+    // По типу
+    const order = ['Ночные сказки', 'Дневные сказки', 'Игры', 'Другое', 'Системные', 'Без категории'];
+    const groups = {};
+    list.forEach(id => {
+      const c = categoryOf(id);
+      (groups[c] = groups[c] || []).push(id);
+      if (order.indexOf(c) === -1) order.push(c);
+    });
+    order.forEach(cat => {
+      const arr = groups[cat]; if (!arr || !arr.length) return;
+      const det = document.createElement('details'); det.className = 'cat';
+      det.open = cat !== 'Системные';
+      const sum = document.createElement('summary');
+      sum.innerHTML = '<span>' + cat + '</span><span class="count">' + arr.length + '</span>';
+      const body = document.createElement('div'); body.className = 'catbody chips';
+      // optional weekday sub-groups for tales
+      if ((cat === 'Дневные сказки' || cat === 'Ночные сказки') && !filterDay) {
+        const byDay = {};
+        const noDay = [];
+        arr.forEach(id => {
+          const m = metaOf(id);
+          if (!m || !m.w) { noDay.push(id); return; }
+          for (let b = 0; b < 7; b++) if (m.w & (1 << b)) {
+            const key = WEEKDAYS[b];
+            (byDay[key] = byDay[key] || []).push(id);
+          }
+        });
+        WEEKDAYS.forEach(day => {
+          const idsDay = byDay[day]; if (!idsDay) return;
+          const h = document.createElement('div'); h.className = 'muted'; h.style.margin = '6px 0 4px'; h.textContent = day;
+          body.appendChild(h);
+          const row = document.createElement('div'); row.className = 'chips';
+          const seen = Object.create(null);
+          idsDay.forEach(id => { if (!seen[id]) { seen[id] = 1; row.appendChild(chip('', id, chipCls(id))); } });
+          body.appendChild(row);
+        });
+        if (noDay.length) {
+          const h = document.createElement('div'); h.className = 'muted'; h.style.margin = '6px 0 4px'; h.textContent = 'Без дня недели';
+          body.appendChild(h);
+          const row = document.createElement('div'); row.className = 'chips';
+          noDay.forEach(id => row.appendChild(chip('', id, chipCls(id))));
+          body.appendChild(row);
+        }
+      } else {
+        arr.forEach(id => body.appendChild(chip('', id, chipCls(id))));
+      }
+      det.appendChild(sum); det.appendChild(body); box.appendChild(det);
+    });
+  }
+  function updateViewTabs() {
+    $('viewType').classList.toggle('on', listView === 'type');
+    $('viewTags').classList.toggle('on', listView === 'tags');
+    $('dayFilters').style.display = listView === 'type' ? 'flex' : 'none';
+    $('lenFilters').style.display = 'flex';
+    $('tagFilters').style.display = listView === 'tags' ? 'flex' : 'none';
+  }
+  function renderDayFilters() {
+    const box = $('dayFilters'); if (!box) return; box.innerHTML = '';
+    const all = document.createElement('button'); all.type = 'button'; all.className = 'fchip' + (filterDay === '' ? ' on' : '');
+    all.textContent = 'Все дни'; all.onclick = () => { filterDay = ''; LS.set('filterDay', ''); renderAllNames(); };
+    box.appendChild(all);
+    WEEKDAYS.forEach((name, b) => {
+      const btn = document.createElement('button'); btn.type = 'button';
+      btn.className = 'fchip' + (filterDay === String(b) ? ' on' : '');
+      btn.textContent = name;
+      btn.onclick = () => { filterDay = String(b); LS.set('filterDay', filterDay); renderAllNames(); };
+      box.appendChild(btn);
+    });
+  }
+  function renderTagFilters() {
+    const box = $('tagFilters'); if (!box) return; box.innerHTML = '';
+    const all = document.createElement('button'); all.type = 'button'; all.className = 'fchip' + (!filterTag ? ' on' : '');
+    all.textContent = 'Все метки'; all.onclick = () => { filterTag = ''; LS.set('filterTag', ''); renderAllNames(); };
+    box.appendChild(all);
+    P.allTagNames(tagsMap).forEach(t => {
+      const btn = document.createElement('button'); btn.type = 'button';
+      btn.className = 'fchip' + (filterTag.toLowerCase() === t.toLowerCase() ? ' on' : '');
+      btn.textContent = t;
+      btn.onclick = () => { filterTag = t; LS.set('filterTag', filterTag); renderAllNames(); };
+      box.appendChild(btn);
+    });
+  }
+  function renderTagManager() {
+    const box = $('tagManager'); if (!box) return; box.innerHTML = '';
+    const names_ = P.allTagNames(tagsMap);
+    if (!names_.length) { box.innerHTML = '<p class="muted">Меток пока нет — добавь через ✏️ у сказки.</p>'; return; }
+    names_.forEach(t => {
+      const row = document.createElement('div'); row.className = 'tagrow';
+      const nmEl = document.createElement('span'); nmEl.className = 'nm'; nmEl.textContent = t;
+      const count = Object.keys(tagsMap).filter(id => (tagsMap[id] || []).some(x => x.toLowerCase() === t.toLowerCase())).length;
+      const c = document.createElement('span'); c.className = 'muted'; c.textContent = count + ' шт.';
+      const ren = document.createElement('button'); ren.className = 'sec small'; ren.textContent = '✏️';
+      ren.onclick = () => {
+        const v = prompt('Переименовать метку «' + t + '»:', t);
+        if (v === null) return;
+        try {
+          tagsMap = P.renameTagInMap(tagsMap, t, v);
+          LS.set('tags', JSON.stringify(tagsMap));
+          if (filterTag.toLowerCase() === t.toLowerCase()) { filterTag = P.cleanTag(v); LS.set('filterTag', filterTag); }
+          renderAllNames(); log('sys', 'Метка: ' + t + ' → ' + P.cleanTag(v));
+        } catch (e) { alert(e.message); }
+      };
+      const del = document.createElement('button'); del.className = 'sec small'; del.textContent = '🗑';
+      del.onclick = () => {
+        if (!confirm('Удалить метку «' + t + '» у всех сказок?')) return;
+        tagsMap = P.deleteTagInMap(tagsMap, t);
+        LS.set('tags', JSON.stringify(tagsMap));
+        if (filterTag.toLowerCase() === t.toLowerCase()) { filterTag = ''; LS.set('filterTag', ''); }
+        renderAllNames(); log('sys', 'Метка удалена: ' + t);
+      };
+      row.appendChild(nmEl); row.appendChild(c); row.appendChild(ren); row.appendChild(del);
+      box.appendChild(row);
+    });
+  }
+  async function pair() {
+    let uid = $('uid').value.trim(), token = $('token').value.trim().toLowerCase();
+    if (!uid) { uid = 'pult' + P.randomToken().slice(0, 24); $('uid').value = uid; }
+    if (!/^[0-9a-f]{32}$/.test(token)) { token = P.randomToken(); $('token').value = token; }
+    if (!confirm('Сейчас будет отправлено PAIR. Сразу после нажатия ОК одновременно зажми обе нижние лапы Мишки (до ~20 секунд). Старое сопряжение заменится. Продолжить?')) return;
+    status('Сопряжение… зажми нижние лапы Мишки', 'muted');
+    try {
+      const r = await send('PAIR', [uid, token]);
+      if (r.code === 0) { LS.set('uid', uid); LS.set('token', token); status('Сопряжение успешно, токен сохранён', 'ok'); await afterConnect(true); }
+      else status('PAIR вернул код ' + r.code + ' (лапы не зажаты вовремя?)', 'err');
+    } catch (e) { status('PAIR: ' + e.message, 'err'); }
+  }
+  async function raw() {
+    const parts = $('rawCmd').value.trim().split(/\s+/); if (!parts[0]) return;
+    try { const r = await send(parts[0], parts.slice(1)); log('sys', 'Результат: ' + JSON.stringify(r)); } catch (e) { log('sys', e.message); }
+  }
+
+  $('btnConnect').onclick = () => (connected || reconnecting) ? disconnectByUser() : connect();
+  $('btnInfo').onclick = () => refreshInfo().then(() => refreshPlayer()).catch(e => alert(e.message));
+  $('btnTime').onclick = () => setTime().catch(e => alert(e.message));
+  $('btnToday').onclick = () => startPlaylist(0);
+  $('btnNight').onclick = () => { const id = ids($('nightList').value)[0]; if (id) play(id); else { alert('id ночной сказки не задан. Впиши его в Настройках.'); $('settings').open = true; } };
+  $('btnPause').onclick = () => simple('PAUS', 'Пауза');
+  $('btnResume').onclick = () => simple('RSME', 'Продолжено');
+  $('btnStop').onclick = () => simple('STOP', 'Остановлено');
+  $('vol').oninput = onVol;
+  $('btnPlayId').onclick = () => play($('playId').value);
+  $('btnList').onclick = loadList;
+  $('btnFlst').onclick = () => refreshDeviceFavs(false);
+  $('btnSave').onclick = () => {
+    LS.set('uid', $('uid').value.trim()); LS.set('token', $('token').value.trim().toLowerCase());
+    LS.set('today', ids($('todayList').value).join(' ')); LS.set('night', ids($('nightList').value).join(' '));
+    renderToday(); log('sys', 'Настройки сохранены');
+  };
+  $('todayList').onchange = $('nightList').onchange = () => { LS.set('today', ids($('todayList').value).join(' ')); LS.set('night', ids($('nightList').value).join(' ')); renderToday(); };
+  $('btnGen').onclick = () => { $('token').value = P.randomToken(); if (!$('uid').value) $('uid').value = 'pult' + P.randomToken().slice(0, 24); };
+  $('btnPair').onclick = pair;
+  $('btnRaw').onclick = raw;
+  $('btnClear').onclick = () => $('log').innerHTML = '';
+  $('showKa').onchange = () => { $('log').classList.toggle('showka', $('showKa').checked); LS.set('showKa', $('showKa').checked ? '1' : ''); };
+  $('syncDevFavs').checked = syncDevFavs;
+  $('syncDevFavs').onchange = () => {
+    syncDevFavs = $('syncDevFavs').checked;
+    LS.set('syncDevFavs', syncDevFavs ? '1' : '');
+    if (syncDevFavs) {
+      alert('Включена запись избранного на Мишку (FADD/FREM). Звезда будет менять список на устройстве. Лимит: 3 без подписки / 10 с подпиской.');
+    }
+    log('sys', syncDevFavs ? 'Синхронизация избранного с Мишкой ВКЛ' : 'Синхронизация избранного с Мишкой ВЫКЛ');
+  };
+  $('uid').value = LS.get('uid'); $('token').value = LS.get('token');
+  $('todayList').value = LS.get('today', DEF_TODAY); $('nightList').value = LS.get('night', DEF_NIGHT);
+  $('showKa').checked = !!LS.get('showKa'); $('log').classList.toggle('showka', $('showKa').checked);
+  $('todayHint').textContent = 'Нажми — сказки дня сыграют по очереди. Или выбери конкретную ниже.';
+  $('btnNamesExport').onclick = exportBundle;
+  $('btnNamesCopy').onclick = copyBundle;
+  $('btnNamesImport').onclick = () => { const t = $('namesJson').value.trim(); if (t) importBundleText(t); else alert('Вставь JSON в поле или выбери файл'); };
+  $('namesFile').onchange = e => { const f = e.target.files[0]; if (!f) return; const rd = new FileReader(); rd.onload = () => { $('namesJson').value = rd.result; importBundleText(rd.result); }; rd.readAsText(f); e.target.value = ''; };
+  $('btnNameAdd').onclick = () => { const id = prompt('id сказки (число):'); if (id && /^\d+$/.test(id.trim())) rename(id.trim()); else if (id) alert('id должен быть числом'); };
+  $('onlyNamed').onchange = renderListChips;
+
+  $('viewType').onclick = () => { listView = 'type'; LS.set('listView', listView); renderAllNames(); };
+  $('viewTags').onclick = () => { listView = 'tags'; LS.set('listView', listView); renderAllNames(); };
+  $('lenFilters').onclick = e => {
+    const b = e.target.closest('[data-len]'); if (!b) return;
+    filterLen = b.getAttribute('data-len'); LS.set('filterLen', filterLen);
+    Array.from($('lenFilters').querySelectorAll('[data-len]')).forEach(x => x.classList.toggle('on', x.getAttribute('data-len') === filterLen));
+    renderListChips();
+  };
+  $('editCancel').onclick = closeEdit;
+  $('editSave').onclick = saveEdit;
+  $('editModal').addEventListener('click', e => { if (e.target === $('editModal')) closeEdit(); });
+  $('editTags').addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); addTagsFromInput(); }
+  });
+  $('editTags').addEventListener('input', renderEditSuggest);
+  lastList = ids(LS.get('lastList'));
+  renderAllNames(); setEnabled();
+  if (!navigator.bluetooth) showNoBt();
+})();
+
+</script>
+</body>
+</html>
