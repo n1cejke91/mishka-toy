@@ -32,88 +32,123 @@
     background:linear-gradient(135deg, #1a1450, #2d1b6e 60%, #1a0f40);
     color:#fff; padding:16px 18px; font-size:19px; font-weight:700;
     display:flex; align-items:center; justify-content:space-between; gap:10px;
-    border-bottom:1px solid rgba(123,108,255,.25);
-    box-shadow:0 0 40px rgba(123,108,255,.2);
+    border-bottom:0;
+    box-shadow:0 8px 24px rgba(0,0,0,.35);
   }
   header .title { flex:1; }
   #hdrBat { display:inline-flex; align-items:center; gap:6px; font-size:14px; font-weight:600;
-    background:rgba(123,108,255,.2); padding:7px 12px; border-radius:20px; border:1px solid rgba(180,170,255,.25); }
+    background:rgba(123,108,255,.22); padding:7px 12px; border-radius:20px; border:0; box-shadow:none; }
   #hdrBat.high { color:#9dffc8; } #hdrBat.mid { color:#ffe08a; } #hdrBat.low { color:#ffb3a8; } #hdrBat.unknown { color:#c8cfff; }
   #hdrBat .mv { font-size:11px; opacity:.75; font-weight:400; }
   #batWarn { display:none; background:#3a2040; color:#ffb0c8; padding:10px 16px; font-size:15px; border-bottom:1px solid #5a3060; }
   #batWarn.show { display:block; }
   main { padding:14px; max-width:720px; margin:0 auto; padding-bottom:40px; }
   .card {
-    background:linear-gradient(160deg, rgba(30,36,72,.95), rgba(18,22,48,.98));
+    background:#151b3a;
     border-radius:20px; padding:16px; margin-bottom:14px;
-    border:1px solid rgba(123,108,255,.22);
-    box-shadow:0 0 24px rgba(80,60,180,.12), inset 0 1px 0 rgba(255,255,255,.04);
+    border:0 !important; outline:0 !important;
+    box-shadow:none !important;
   }
   h2 { font-size:17px; margin:0 0 12px; color:#c8c4ff; }
   h3 { font-size:15px; margin:12px 0 8px; color:#9ea6d8; }
   button {
-    font-size:17px; padding:14px; border:0; border-radius:16px;
-    background:linear-gradient(135deg, #8b7cff, #6a5aef); color:#fff; font-weight:700;
-    min-height:56px; cursor:pointer; box-shadow:0 0 16px var(--glow);
+    font-size:17px; padding:14px; border:0; border-radius:16px; outline:0 !important;
+    background:#6a5aef; background-image:none !important; color:#fff; font-weight:700;
+    min-height:56px; cursor:pointer; box-shadow:none;
+    -webkit-tap-highlight-color: transparent;
   }
-  button:disabled { opacity:.35; box-shadow:none; }
-  button.sec { background:#243056; color:#d8dcff; box-shadow:none; border:1px solid rgba(123,108,255,.25); }
+  /* Общие кнопки без ободка; у .chip/.star/.pen оставляем свои border/shadow из правил ниже */
+  button:not(.chip):not(.star):not(.pen) {
+    border:0 !important;
+    box-shadow:none !important;
+  }
+  button:focus, button:focus-visible { outline:0 !important; box-shadow:none !important; }
+  button:active { background:#7b6cff; }
+  button:disabled { opacity:.35; }
+  button.sec { background:#2a3358; color:#d8dcff; box-shadow:none !important; border:0 !important; background-image:none !important; }
   .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:10px; }
   .big { width:100%; font-size:19px; }
   #status { margin-top:10px; font-size:15px; }
   .ok { color:var(--ok); } .err { color:var(--err); }
-  .chips { display:flex; flex-wrap:wrap; gap:8px; max-height:300px; overflow:auto; }
+  .chips { display:flex; flex-wrap:wrap; gap:8px; }
+  /* избранное/недавние/сегодня — ограниченная высота; категории раскрываются целиком */
+  #favChips, #recentChips, #todayChips { max-height:300px; overflow:auto; }
+  .daygroup { display:block; width:100%; margin:0 0 12px; clear:both; }
+  .daygroup:last-child { margin-bottom:0; }
+  .daygroup-title {
+    display:block; width:100%; box-sizing:border-box;
+    font-size:14px; font-weight:700; color:#c8c4ff;
+    margin:0 0 8px; padding:6px 10px;
+    background:rgba(123,108,255,.16); border-radius:10px;
+    border:0; box-shadow:none;
+  }
+  .daygroup .chips { max-height:none; overflow:visible; }
   .chip { padding:10px 14px; min-height:46px; font-size:15px; border-radius:22px; background:var(--chip); color:#dce0ff; border:1px solid rgba(140,130,255,.2); }
   .chip.today { background:#3a3270; border-color:#8b7cff; box-shadow:0 0 12px rgba(123,108,255,.3); }
   .chip.night { background:#1e2a58; border-color:#6ab0ff; color:#c8e0ff; }
-  .chipw { display:inline-flex; align-items:stretch; }
-  .chipw .star { min-height:46px; padding:6px 11px; font-size:16px; border-radius:22px 0 0 22px; background:#2a3358; color:#c8c4ff; margin-right:1px; border:1px solid rgba(140,130,255,.2); border-right:0; }
-  .chipw .star.on { background:#5a4acc; color:#ffe566; box-shadow:0 0 10px rgba(255,220,100,.35); }
-  .chipw .chip { border-radius:0; -webkit-user-select:none; user-select:none; border-left:0; border-right:0; }
-  .chipw .pen { min-height:46px; padding:6px 11px; font-size:15px; border-radius:0 22px 22px 0; background:#2a3358; color:#c8c4ff; margin-left:1px; border:1px solid rgba(140,130,255,.2); border-left:0; }
-  .chipw.nostar .chip { border-radius:22px 0 0 22px; border-left:1px solid rgba(140,130,255,.2); }
+  /* chipw: без внешнего glow/clip-AA; 1px box-shadow = цвет заливки (маскирует AA, не светлый ободок) */
+  .chipw { display:inline-flex; align-items:stretch; background:transparent; border:0 !important; outline:0 !important; box-shadow:none !important; }
+  .chipw .star,
+  .chipw .chip,
+  .chipw .pen {
+    border:0 !important;
+    outline:0 !important;
+    background-clip:padding-box;
+    -webkit-appearance:none;
+    appearance:none;
+  }
+  .chipw .star { min-height:46px; padding:6px 11px; font-size:16px; border-radius:22px 0 0 22px; background:#2a3358; color:#c8c4ff; margin-right:1px; box-shadow:0 0 0 1px #2a3358 !important; }
+  .chipw .star.on { background:#5a4acc; color:#ffe566; box-shadow:0 0 0 1px #5a4acc !important; }
+  .chipw .chip { border-radius:0; -webkit-user-select:none; user-select:none; box-shadow:0 0 0 1px #243056 !important; }
+  .chipw .chip.today { box-shadow:0 0 0 1px #3a3270 !important; }
+  .chipw .chip.night { box-shadow:0 0 0 1px #1e2a58 !important; }
+  .chipw .pen { min-height:46px; padding:6px 11px; font-size:15px; border-radius:0 22px 22px 0; background:#2a3358; color:#c8c4ff; margin-left:1px; box-shadow:0 0 0 1px #2a3358 !important; }
+  .chipw.nostar .chip { border-radius:22px 0 0 22px; }
   .badge { font-size:10px; opacity:.7; margin-left:4px; }
   .cid { font-size:11px; opacity:.5; }
   .namerow { display:flex; align-items:center; gap:6px; padding:8px 0; border-bottom:1px solid rgba(100,90,180,.2); }
   .namerow .nametext { flex:1; font-size:16px; }
   button.small { min-height:40px; padding:6px 12px; font-size:15px; box-shadow:none; }
   textarea, input[type=text], input[type=number] {
-    font-size:17px; padding:12px; border:1px solid rgba(123,108,255,.3); border-radius:12px; width:100%;
-    background:#0f1430; color:var(--ink);
+    font-size:17px; padding:12px; border:0; border-radius:12px; width:100%;
+    background:#0f1430; color:var(--ink); box-shadow:none; outline:0;
+  }
+  input[type=text]:focus, input[type=number]:focus, textarea:focus {
+    outline:0; box-shadow:0 0 0 2px rgba(123,108,255,.4);
   }
   input[type=range] { width:100%; height:40px; }
   .row { display:flex; gap:8px; align-items:center; } .row > * { flex:1; }
-  #log { font-family:ui-monospace,Menlo,Consolas,monospace; font-size:12px; white-space:pre-wrap; background:#060818; color:#a8f0c0; border-radius:12px; padding:10px; max-height:220px; overflow:auto; border:1px solid #1a2040; }
+  #log { font-family:ui-monospace,Menlo,Consolas,monospace; font-size:12px; white-space:pre-wrap; background:#060818; color:#a8f0c0; border-radius:12px; padding:10px; max-height:220px; overflow:auto; border:0; }
   .tx { color:#ffd27a; } .rx { color:#8cf; } .sys { color:#7a82a8; }
   #log .ka { display:none; } #log.showka .ka { display:block; color:#555; }
   details summary { font-size:17px; font-weight:600; cursor:pointer; padding:6px 0; color:#c8c4ff; }
   .muted { color:var(--muted); font-size:14px; }
   .info { display:grid; grid-template-columns:1fr 1fr; gap:8px; font-size:15px; }
-  .togrow { display:flex; align-items:flex-start; gap:10px; padding:12px; background:#1a2048; border-radius:14px; margin:8px 0; border:1px solid rgba(123,108,255,.2); }
+  .togrow { display:flex; align-items:flex-start; gap:10px; padding:12px; background:#1a2048; border-radius:14px; margin:8px 0; border:0; box-shadow:none; }
   .togrow input { width:22px; height:22px; margin-top:2px; flex:0 0 auto; }
-  .cat { margin-top:10px; border:1px solid rgba(123,108,255,.25); border-radius:16px; overflow:hidden; background:#121833; }
-  .cat > summary { list-style:none; padding:12px 14px; background:linear-gradient(90deg,#1c1850,#151b3a); font-weight:700; font-size:16px; cursor:pointer; display:flex; justify-content:space-between; align-items:center; color:#d0ccff; }
+  .cat { margin-top:10px; border:0; border-radius:16px; overflow:hidden; background:#121833; box-shadow:none; }
+  .cat > summary { list-style:none; padding:12px 14px; background:#1a2048; font-weight:700; font-size:16px; cursor:pointer; display:flex; justify-content:space-between; align-items:center; color:#d0ccff; border:0; }
   .cat > summary::-webkit-details-marker { display:none; }
-  .cat .catbody { padding:12px; }
+  .cat .catbody { padding:12px; display:block; }
   .cat .count { font-weight:500; color:#9ea6d8; font-size:13px; }
   .viewtabs { display:flex; gap:8px; flex-wrap:wrap; margin:8px 0; }
-  .viewtabs button { min-height:42px; padding:8px 14px; font-size:15px; background:#243056; color:#d8dcff; box-shadow:none; }
-  .viewtabs button.on { background:linear-gradient(135deg,#8b7cff,#6a5aef); color:#fff; box-shadow:0 0 12px var(--glow); }
+  .viewtabs button { min-height:42px; padding:8px 14px; font-size:15px; background:#2a3358; color:#d8dcff; box-shadow:none !important; border:0 !important; outline:0 !important; background-image:none !important; }
+  .viewtabs button.on { background:#6a5aef; color:#fff; }
   .filters { display:flex; flex-wrap:wrap; gap:6px; margin:8px 0; }
-  .filters .fchip { min-height:36px; padding:6px 12px; font-size:14px; border-radius:18px; background:#243056; color:#d8dcff; box-shadow:none; }
-  .filters .fchip.on { background:#7b6cff; color:#fff; box-shadow:0 0 10px var(--glow); }
+  .filters .fchip { min-height:36px; padding:6px 12px; font-size:14px; border-radius:18px; background:#2a3358; color:#d8dcff; box-shadow:none !important; border:0 !important; outline:0 !important; background-image:none !important; }
+  .filters .fchip.on { background:#6a5aef; color:#fff; }
   .lenhint { font-size:11px; opacity:.55; margin-left:4px; }
   .tagpill { display:inline-block; font-size:11px; background:#2a2058; color:#c8b8ff; border-radius:10px; padding:2px 7px; margin-left:4px; border:1px solid rgba(160,140,255,.3); }
   .modal-bg { display:none; position:fixed; inset:0; background:rgba(4,6,20,.72); z-index:100; align-items:flex-end; justify-content:center; padding:12px; }
   .modal-bg.show { display:flex; }
-  .modal { background:#151b3a; border-radius:20px 20px 14px 14px; padding:18px; width:100%; max-width:480px; max-height:90vh; overflow:auto; border:1px solid rgba(123,108,255,.35); box-shadow:0 0 40px rgba(100,80,220,.35); color:var(--ink); }
+  .modal { background:#151b3a; border-radius:20px 20px 14px 14px; padding:18px; width:100%; max-width:480px; max-height:90vh; overflow:auto; border:0; box-shadow:0 12px 40px rgba(0,0,0,.55); color:var(--ink); }
   .modal h3 { margin:0 0 10px; font-size:18px; color:#d0ccff; }
   .modal label { display:block; margin-top:10px; font-size:14px; color:#8b93c0; }
   .modal .actions { display:flex; gap:8px; margin-top:14px; }
   .modal .actions button { flex:1; }
   .suggest { display:flex; flex-wrap:wrap; gap:6px; margin-top:6px; }
-  .suggest button { min-height:32px; padding:4px 10px; font-size:13px; background:#243056; color:#d8dcff; box-shadow:none; }
-  .itag { display:inline-flex; align-items:center; gap:4px; background:#2a2058; color:#c8b8ff; border-radius:14px; padding:4px 8px; margin:2px; font-size:14px; }
+  .suggest button { min-height:32px; padding:4px 10px; font-size:13px; background:#243056; color:#d8dcff; box-shadow:none; border:0; outline:0; }
+  .itag { display:inline-flex; align-items:center; gap:4px; background:#3a2a70; color:#c8b8ff; border-radius:14px; padding:4px 8px; margin:2px; font-size:14px; border:0; box-shadow:none; }
   .itag button { min-height:24px; padding:0 6px; font-size:14px; background:transparent; color:#c8b8ff; box-shadow:none; }
   .tagrow { display:flex; align-items:center; gap:6px; padding:8px 0; border-bottom:1px solid rgba(100,90,180,.2); }
   .tagrow .nm { flex:1; font-size:16px; }
@@ -126,7 +161,7 @@
   #settings label { color: #9ea6d8; display: block; margin-top: 8px; font-size: 14px; }
   #batWarn { border-bottom: 1px solid #5a3060; }
   .modal input[type=text], .modal input[type=number], .modal textarea {
-    background: #0f1430; color: #e8ecff; border: 1px solid rgba(123,108,255,.35);
+    background: #0f1430; color: #e8ecff; border: 0; box-shadow: none;
   }
   .modal .actions button.sec { background: #243056; color: #d8dcff; }
   ::placeholder { color: #6b7398; opacity: 1; }
@@ -134,6 +169,13 @@
   ::-webkit-scrollbar-thumb { background: #3a4270; border-radius: 8px; }
   input[type=range] { accent-color: #7b6cff; }
   a { color: #a8b0ff; }
+
+  button, .chip, .chipw, .fchip, .pen, .star, .tagpill, .itag, .card, .cat, .daygroup-title, #hdrBat {
+    -webkit-appearance: none; appearance: none;
+  }
+  *:focus { outline: none; }
+  *:focus-visible { outline: none; }
+
 
 </style>
 </head>
@@ -517,6 +559,7 @@
   const META_ITEMS = CONTENT_META.items || {};
   const META_THR = CONTENT_META.thresholdBytes || 1510980;
   const WEEKDAYS = CONTENT_META.weekdayBits || ['Вс','Пн','Вт','Ср','Чт','Пт','Сб'];
+  const WEEKDAY_FULL = ['Воскресенье','Понедельник','Вторник','Среда','Четверг','Пятница','Суббота'];
 
   const SVC = '6e400001-b5a3-f393-e0a9-e50e24dcca9e';
   const RX  = '6e400002-b5a3-f393-e0a9-e50e24dcca9e';
@@ -1117,6 +1160,34 @@
       log('sys', 'LIST: ' + lastList.length + ' шт.');
     } catch (e) { alert('LIST: ' + e.message); }
   }
+  // Блок «день → чипы» (не flex-рядом с чипами). bit0=Вс … bit6=Сб.
+  function appendDayGroups(body, idList, chipCls) {
+    const byDay = {}; // bit index -> ids
+    const multi = [];
+    const noDay = [];
+    idList.forEach(id => {
+      const m = metaOf(id);
+      if (!m || !m.w) { noDay.push(id); return; }
+      const bits = [];
+      for (let b = 0; b < 7; b++) if (m.w & (1 << b)) bits.push(b);
+      if (!bits.length) { noDay.push(id); return; }
+      if (bits.length > 1) { multi.push(id); return; }
+      const b = bits[0];
+      (byDay[b] = byDay[b] || []).push(id);
+    });
+    function addGroup(title, ids) {
+      if (!ids || !ids.length) return;
+      const g = document.createElement('div'); g.className = 'daygroup';
+      const h = document.createElement('div'); h.className = 'daygroup-title'; h.textContent = title;
+      const row = document.createElement('div'); row.className = 'chips';
+      const seen = Object.create(null);
+      ids.forEach(id => { if (!seen[id]) { seen[id] = 1; row.appendChild(chip('', id, chipCls(id))); } });
+      g.appendChild(h); g.appendChild(row); body.appendChild(g);
+    }
+    for (let b = 0; b < 7; b++) addGroup(WEEKDAY_FULL[b] || WEEKDAYS[b], byDay[b]);
+    addGroup('Несколько дней', multi);
+    addGroup('Без дня', noDay);
+  }
   function renderListChips() {
     const box = $('listChips'); box.innerHTML = '';
     const t = ids($('todayList').value), n = ids($('nightList').value);
@@ -1127,7 +1198,6 @@
     const chipCls = id => t.includes(id) ? 'today' : n.includes(id) ? 'night' : '';
 
     if (listView === 'tags') {
-      // group by tag; untagged at end
       const byTag = {};
       const untagged = [];
       list.forEach(id => {
@@ -1137,7 +1207,6 @@
       });
       const tagNames = Object.keys(byTag).sort((a, b) => a.localeCompare(b, 'ru'));
       if (filterTag) {
-        // already filtered to one tag
         const wrap = document.createElement('div'); wrap.className = 'chips';
         list.forEach(id => wrap.appendChild(chip('', id, chipCls(id))));
         box.appendChild(wrap);
@@ -1147,24 +1216,25 @@
         const det = document.createElement('details'); det.className = 'cat'; det.open = true;
         const sum = document.createElement('summary');
         sum.innerHTML = '<span>🏷 ' + tag + '</span><span class="count">' + byTag[tag].length + '</span>';
-        const body = document.createElement('div'); body.className = 'catbody chips';
-        // unique ids in this tag group
+        const body = document.createElement('div'); body.className = 'catbody';
+        const wrap = document.createElement('div'); wrap.className = 'chips';
         const seen = Object.create(null);
-        byTag[tag].forEach(id => { if (!seen[id]) { seen[id] = 1; body.appendChild(chip('', id, chipCls(id))); } });
-        det.appendChild(sum); det.appendChild(body); box.appendChild(det);
+        byTag[tag].forEach(id => { if (!seen[id]) { seen[id] = 1; wrap.appendChild(chip('', id, chipCls(id))); } });
+        body.appendChild(wrap); det.appendChild(sum); det.appendChild(body); box.appendChild(det);
       });
       if (untagged.length) {
         const det = document.createElement('details'); det.className = 'cat'; det.open = true;
         const sum = document.createElement('summary');
         sum.innerHTML = '<span>Без метки</span><span class="count">' + untagged.length + '</span>';
-        const body = document.createElement('div'); body.className = 'catbody chips';
-        untagged.forEach(id => body.appendChild(chip('', id, chipCls(id))));
-        det.appendChild(sum); det.appendChild(body); box.appendChild(det);
+        const body = document.createElement('div'); body.className = 'catbody';
+        const wrap = document.createElement('div'); wrap.className = 'chips';
+        untagged.forEach(id => wrap.appendChild(chip('', id, chipCls(id))));
+        body.appendChild(wrap); det.appendChild(sum); det.appendChild(body); box.appendChild(det);
       }
       return;
     }
 
-    // По типу
+    // По типу — подгруппы по дням (Вс→Сб) блоками
     const order = ['Ночные сказки', 'Дневные сказки', 'Игры', 'Другое', 'Системные', 'Без категории'];
     const groups = {};
     list.forEach(id => {
@@ -1178,37 +1248,13 @@
       det.open = cat !== 'Системные';
       const sum = document.createElement('summary');
       sum.innerHTML = '<span>' + cat + '</span><span class="count">' + arr.length + '</span>';
-      const body = document.createElement('div'); body.className = 'catbody chips';
-      // optional weekday sub-groups for tales
-      if ((cat === 'Дневные сказки' || cat === 'Ночные сказки') && !filterDay) {
-        const byDay = {};
-        const noDay = [];
-        arr.forEach(id => {
-          const m = metaOf(id);
-          if (!m || !m.w) { noDay.push(id); return; }
-          for (let b = 0; b < 7; b++) if (m.w & (1 << b)) {
-            const key = WEEKDAYS[b];
-            (byDay[key] = byDay[key] || []).push(id);
-          }
-        });
-        WEEKDAYS.forEach(day => {
-          const idsDay = byDay[day]; if (!idsDay) return;
-          const h = document.createElement('div'); h.className = 'muted'; h.style.margin = '6px 0 4px'; h.textContent = day;
-          body.appendChild(h);
-          const row = document.createElement('div'); row.className = 'chips';
-          const seen = Object.create(null);
-          idsDay.forEach(id => { if (!seen[id]) { seen[id] = 1; row.appendChild(chip('', id, chipCls(id))); } });
-          body.appendChild(row);
-        });
-        if (noDay.length) {
-          const h = document.createElement('div'); h.className = 'muted'; h.style.margin = '6px 0 4px'; h.textContent = 'Без дня недели';
-          body.appendChild(h);
-          const row = document.createElement('div'); row.className = 'chips';
-          noDay.forEach(id => row.appendChild(chip('', id, chipCls(id))));
-          body.appendChild(row);
-        }
+      const body = document.createElement('div'); body.className = 'catbody';
+      if (!filterDay) {
+        appendDayGroups(body, arr, chipCls);
       } else {
-        arr.forEach(id => body.appendChild(chip('', id, chipCls(id))));
+        const wrap = document.createElement('div'); wrap.className = 'chips';
+        arr.forEach(id => wrap.appendChild(chip('', id, chipCls(id))));
+        body.appendChild(wrap);
       }
       det.appendChild(sum); det.appendChild(body); box.appendChild(det);
     });
