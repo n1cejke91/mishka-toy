@@ -282,7 +282,7 @@
       <input type="text" id="todayList" inputmode="numeric" autocomplete="off">
       <label>Ночная сказка (id)</label>
       <input type="text" id="nightList" inputmode="numeric" autocomplete="off">
-      <p class="muted">Если Мишка сам пришлёт список дня (строка «today … night …»), он подставится сюда автоматически.</p>
+      <p class="muted">Список дня берётся из каталога по дню недели на этом телефоне или компьютере. Можно поправить вручную на сегодня; на следующую дату снова подставится каталог.</p>
       <h2 style="margin-top:16px">Избранное на Мишке</h2>
       <div class="togrow">
         <input type="checkbox" id="syncDevFavs">
@@ -437,6 +437,88 @@
     d = d || new Date();
     return { stmz: [String(-d.getTimezoneOffset() / 60)], stim: [d.getFullYear(), d.getMonth() + 1, d.getDate(), d.getHours(), d.getMinutes(), d.getSeconds()].map(String) };
   }
+  const LEGACY_TODAY = '5686 5687 5688 5690', LEGACY_NIGHT = '5689';
+  const WEEKDAY_BITS_DEFAULT = ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'];
+  function localDateKey(d) {
+    d = d || new Date();
+    const m = d.getMonth() + 1, day = d.getDate();
+    return d.getFullYear() + '-' + String(m).padStart(2, '0') + '-' + String(day).padStart(2, '0');
+  }
+  function normalizeIdString(s) {
+    return String(s || '').split(/[\s,;]+/).filter(x => /^\d+$/.test(x)).join(' ');
+  }
+  // Каталог: t=-1 сказки, n=1 ночная, w — битовая маска (бит 0 = воскресенье), порядок как в items.
+  function playlistsForLocalDay(meta, d) {
+    d = d || new Date();
+    const dayIdx = d.getDay();
+    const bit = 1 << dayIdx;
+    const weekdays = (meta && meta.weekdayBits && meta.weekdayBits.length === 7) ? meta.weekdayBits : WEEKDAY_BITS_DEFAULT;
+    const todayIds = [], nightIds = [];
+    const items = (meta && meta.items) || {};
+    for (const id of Object.keys(items)) {
+      const it = items[id];
+      if (!it || it.t !== -1) continue;
+      if (!(it.w & bit)) continue;
+      if (it.n) nightIds.push(id);
+      else todayIds.push(id);
+    }
+    return { dayIdx: dayIdx, bit: bit, weekday: weekdays[dayIdx] || String(dayIdx), todayIds: todayIds, nightIds: nightIds };
+  }
+  function listsAreLegacyDefaults(todayStr, nightStr) {
+    const t = normalizeIdString(todayStr), n = normalizeIdString(nightStr);
+    return (!t && !n) || (t === LEGACY_TODAY && n === LEGACY_NIGHT);
+  }
+  // Обновить каталогом, кроме ручной правки на ту же локальную дату.
+  function shouldRefreshTodayLists(state, now) {
+    state = state || {};
+    const key = localDateKey(now);
+    const manual = state.todayManual === '1' || state.todayManual === true;
+    if (manual && state.todayDate === key && !listsAreLegacyDefaults(state.today, state.night)) return false;
+    return true;
+  }
+  function timeCommandOk(r) {
+    return !!(r && r.code === 0);
+  }
+  function timeCommandError(r, cmd) {
+    if (!r) return cmd + ': нет ответа';
+    if (r.code === undefined || r.code === null || (typeof r.code === 'number' && isNaN(r.code))) return cmd + ': нет кода ответа';
+    return cmd + ': игрушка вернула код ' + r.code;
+  }
+  // GTIM по парсеру приложения: год..сек и затем расписание утра/дня/вечера/ночи. Часового пояса в ответе нет.
+  function gtimMatches(gtim, expected, toleranceMs) {
+    if (toleranceMs == null) toleranceMs = 30000;
+    if (!gtim) return { ok: false, reason: 'missing', deltaMs: null };
+    const parts = [gtim.year, gtim.month, gtim.day, gtim.hours, gtim.minutes, gtim.seconds];
+    if (parts.some(x => x == null || isNaN(x))) return { ok: false, reason: 'incomplete', deltaMs: null };
+    const got = new Date(gtim.year, gtim.month - 1, gtim.day, gtim.hours, gtim.minutes, gtim.seconds).getTime();
+    const exp = expected.getTime();
+    const deltaMs = got - exp;
+    if (Math.abs(deltaMs) <= toleranceMs) return { ok: true, reason: 'ok', deltaMs: deltaMs };
+    return { ok: false, reason: 'mismatch', deltaMs: deltaMs };
+  }
+  function evaluateSetTimeExchange(input) {
+    input = input || {};
+    const offset = (input.offsetHours != null) ? String(input.offsetHours) : '';
+    const shown = input.stimText || '';
+    if (input.stmzError) return { ok: false, confirmed: false, level: 'failed', message: 'Не удалось выставить пояс (STMZ): ' + input.stmzError };
+    if (!timeCommandOk(input.stmz)) return { ok: false, confirmed: false, level: 'failed', message: 'Не удалось выставить пояс. ' + timeCommandError(input.stmz, 'STMZ') };
+    if (input.stimError) return { ok: false, confirmed: false, level: 'failed', message: 'Не удалось выставить время (STIM): ' + input.stimError };
+    if (!timeCommandOk(input.stim)) return { ok: false, confirmed: false, level: 'failed', message: 'Не удалось выставить время. ' + timeCommandError(input.stim, 'STIM') };
+    const ackTail = (shown ? shown : '') + (offset !== '' ? (', пояс ' + offset) : '');
+    if (input.gtimError) {
+      return { ok: true, confirmed: false, level: 'ack', message: 'Игрушка приняла время (STMZ и STIM)' + (ackTail ? ': ' + ackTail : '') + ', но подтвердить часы не удалось (' + input.gtimError + ')' };
+    }
+    const now = input.now || new Date();
+    const m = gtimMatches(input.gtim, now, input.toleranceMs);
+    if (m.reason === 'missing' || m.reason === 'incomplete') {
+      return { ok: true, confirmed: false, level: 'ack', message: 'Игрушка приняла время (STMZ и STIM)' + (ackTail ? ': ' + ackTail : '') + ', но ответ GTIM неполный, часы не подтверждены' };
+    }
+    if (!m.ok) {
+      const sec = Math.round(Math.abs(m.deltaMs) / 1000);
+      return { ok: false, confirmed: false, level: 'mismatch', message: 'Игрушка приняла STMZ и STIM, но часы по GTIM не совпали (расхождение ' + sec + ' с)' };
+    }
+    return { ok: true, confirmed: true, level: 'confirmed', message: 'Время выставлено и подтверждено' + (ackTail ? ': ' + ackTail : '') };
+  }
   function randomToken() {
     const b = new Uint8Array(16);
     (root.crypto || require('crypto').webcrypto).getRandomValues(b);
@@ -545,7 +627,10 @@
     cleanTag, normalizeTagsMap, setItemTags, allTagNames, renameTagInMap, deleteTagInMap,
     batteryPercent, batteryLevel, BAT_CURVE,
     FORBIDDEN, buildFrame, createParser, parseResponse, interpret,
-    STRT_ERR, FADD_ERR, FREM_ERR, timeArgs, randomToken
+    STRT_ERR, FADD_ERR, FREM_ERR, timeArgs, randomToken,
+    LEGACY_TODAY, LEGACY_NIGHT, localDateKey, normalizeIdString, playlistsForLocalDay,
+    listsAreLegacyDefaults, shouldRefreshTodayLists, timeCommandOk, timeCommandError,
+    gtimMatches, evaluateSetTimeExchange
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.MishkaProto = api;
 })(typeof window !== 'undefined' ? window : globalThis);
@@ -569,7 +654,7 @@
   const PLAYLIST_POLL_MS = 3000;
   const INFO_REFRESH_MS = 60000;
   const RECONNECT_DELAYS = [1000, 2000, 4000, 8000, 15000, 30000];
-  const DEF_TODAY = '5686 5687 5688 5690', DEF_NIGHT = '5689';
+  const DEF_TODAY = P.LEGACY_TODAY, DEF_NIGHT = P.LEGACY_NIGHT;
   const RECENT_MAX = 10;
   const $ = id => document.getElementById(id);
   const LS = { get: (k, d) => { const v = localStorage.getItem('mishka.' + k); return v === null ? (d || '') : v; }, set: (k, v) => localStorage.setItem('mishka.' + k, v) };
@@ -618,6 +703,44 @@
     $('btnConnect').textContent = (connected || reconnecting) ? 'Отключиться' : 'Подключиться к Мишке';
   }
   const ids = str => String(str || '').split(/[\s,;]+/).filter(x => /^\d+$/.test(x));
+
+  function todayHintText(pl) {
+    const name = (WEEKDAY_FULL[pl.dayIdx] || pl.weekday || '').toLowerCase();
+    return 'Сегодня ' + name + '. Нажми — сказки дня сыграют по очереди. Или выбери конкретную ниже.';
+  }
+  function markTodayManual() {
+    const t = ids($('todayList').value).join(' '), n = ids($('nightList').value).join(' ');
+    LS.set('today', t); LS.set('night', n);
+    LS.set('todayDate', P.localDateKey());
+    LS.set('todayManual', '1');
+  }
+  function applyTodayPlaylists(reason) {
+    const now = new Date();
+    const pl = P.playlistsForLocalDay(CONTENT_META, now);
+    const state = { today: $('todayList').value, night: $('nightList').value, todayDate: LS.get('todayDate'), todayManual: LS.get('todayManual') };
+    if (!P.shouldRefreshTodayLists(state, now)) {
+      lastDateKey = P.localDateKey(now);
+      if ($('todayHint')) $('todayHint').textContent = todayHintText(pl);
+      return pl;
+    }
+    const t = pl.todayIds.join(' '), n = pl.nightIds.join(' ');
+    $('todayList').value = t;
+    $('nightList').value = n;
+    LS.set('today', t); LS.set('night', n);
+    LS.set('todayDate', P.localDateKey(now));
+    LS.set('todayManual', '');
+    lastDateKey = P.localDateKey(now);
+    if ($('todayHint')) $('todayHint').textContent = todayHintText(pl);
+    renderToday();
+    if (reason && reason !== 'startup') log('sys', 'Сказки на ' + (WEEKDAY_FULL[pl.dayIdx] || pl.weekday) + ': ' + (t || 'нет') + '; ночная: ' + (n || 'нет'));
+    else if (reason === 'startup') log('sys', 'Сказки на ' + (WEEKDAY_FULL[pl.dayIdx] || pl.weekday) + ': ' + (t || 'нет') + '; ночная: ' + (n || 'нет'));
+    return pl;
+  }
+  let lastDateKey = P.localDateKey();
+  function checkLocalDate() {
+    const k = P.localDateKey();
+    if (k !== lastDateKey) applyTodayPlaylists('date-change');
+  }
 
   function send(cmd, args, opts) {
     opts = opts || {};
@@ -670,9 +793,7 @@
   }
   function sniffToday(text) {
     const t = /today\s+([\d\s]+)/i.exec(text), n = /night\s+([\d\s]+)/i.exec(text);
-    if (t && ids(t[1]).length) { const v = ids(t[1]).join(' '); $('todayList').value = v; LS.set('today', v); log('sys', 'Мишка сообщил сказки дня: ' + v); }
-    if (n && ids(n[1]).length) { const v = ids(n[1]).join(' '); $('nightList').value = v; LS.set('night', v); log('sys', 'Мишка сообщил ночную сказку: ' + v); }
-    if (t || n) renderToday();
+    if (t || n) log('sys', 'Мишка прислал today/night, список дня не меняем: используются сказки по дню недели телефона');
   }
 
   async function connect() {
@@ -710,12 +831,21 @@
     try {
       await refreshInfo();
       status('Подключено' + (authed ? ' и авторизовано' : '') + (isReconnect ? ' (переподключились)' : ''), 'ok');
-      if (!isReconnect) await setTime();
-      await refreshPlayer();
-      await refreshDeviceFavs(true);
     } catch (e) {
       if (e.naut) { status(token ? 'Мишка не принял токен (NAUT). Сделай сопряжение в Настройках.' : 'Нужна авторизация (NAUT). Открой «Настройки» и сделай сопряжение (PAIR) или введи токен.', 'err'); $('settings').open = true; }
       else status('Подключено, но ошибка: ' + e.message, 'err');
+      return;
+    }
+    applyTodayPlaylists('connect');
+    if (!isReconnect) {
+      try { await setTime(); }
+      catch (e) { log('sys', 'Не удалось выставить время: ' + e.message); }
+    }
+    try {
+      await refreshPlayer();
+      await refreshDeviceFavs(true);
+    } catch (e) {
+      status('Подключено, но ошибка: ' + e.message, 'err');
     }
   }
   function dropState(reason) {
@@ -765,6 +895,7 @@
   function startKeepalive() { stopKeepalive(); kaTimer = setInterval(keepaliveTick, 1000); }
   function stopKeepalive() { if (kaTimer) clearInterval(kaTimer); kaTimer = null; }
   function keepaliveTick() {
+    checkLocalDate();
     if (!connected || current || queue.length) return;
     // Во время плейлиста только SPLR — INFO не мешает опросу состояния.
     if (playlist) {
@@ -826,9 +957,28 @@
   }
   async function setTime() {
     const t = P.timeArgs();
-    await send('STMZ', t.stmz);
-    await send('STIM', t.stim);
-    log('sys', 'Время выставлено: ' + t.stim.join(' ') + ', пояс ' + t.stmz[0]);
+    const stimText = t.stim.join(' ');
+    let stmz, stim, stmzError, stimError;
+    try { stmz = await send('STMZ', t.stmz); }
+    catch (e) { stmzError = e.message || String(e); }
+    if (!stmzError && !P.timeCommandOk(stmz)) stmzError = P.timeCommandError(stmz, 'STMZ');
+    if (!stmzError) {
+      try { stim = await send('STIM', t.stim); }
+      catch (e) { stimError = e.message || String(e); }
+      if (!stimError && !P.timeCommandOk(stim)) stimError = P.timeCommandError(stim, 'STIM');
+    }
+    let gtim, gtimError;
+    if (!stmzError && !stimError) {
+      try { gtim = await send('GTIM'); }
+      catch (e) { gtimError = e.message || String(e); }
+    }
+    const verdict = P.evaluateSetTimeExchange({
+      stmz: stmz, stim: stim, stmzError: stmzError, stimError: stimError,
+      gtim: gtim, gtimError: gtimError, now: new Date(), offsetHours: t.stmz[0], stimText: stimText
+    });
+    log('sys', verdict.message);
+    if (!verdict.ok) throw new Error(verdict.message);
+    return verdict;
   }
   function pushRecent(id) {
     id = String(id);
@@ -1120,6 +1270,7 @@
   }
   function renderPlaylist() { renderPlaylistText(); renderToday(); }
   async function startPlaylist(from) {
+    applyTodayPlaylists('play');
     const list = ids($('todayList').value);
     if (!list.length) { alert('Список сказок дня пуст. Впиши id в Настройках.'); $('settings').open = true; return; }
     playlist = { ids: list, idx: from || 0, sawPlaying: false, startedAt: Date.now() };
@@ -1345,7 +1496,7 @@
   $('btnInfo').onclick = () => refreshInfo().then(() => refreshPlayer()).catch(e => alert(e.message));
   $('btnTime').onclick = () => setTime().catch(e => alert(e.message));
   $('btnToday').onclick = () => startPlaylist(0);
-  $('btnNight').onclick = () => { const id = ids($('nightList').value)[0]; if (id) play(id); else { alert('id ночной сказки не задан. Впиши его в Настройках.'); $('settings').open = true; } };
+  $('btnNight').onclick = () => { applyTodayPlaylists('play'); const id = ids($('nightList').value)[0]; if (id) play(id); else { alert('id ночной сказки не задан. Впиши его в Настройках.'); $('settings').open = true; } };
   $('btnPause').onclick = () => simple('PAUS', 'Пауза');
   $('btnResume').onclick = () => simple('RSME', 'Продолжено');
   $('btnStop').onclick = () => simple('STOP', 'Остановлено');
@@ -1355,10 +1506,10 @@
   $('btnFlst').onclick = () => refreshDeviceFavs(false);
   $('btnSave').onclick = () => {
     LS.set('uid', $('uid').value.trim()); LS.set('token', $('token').value.trim().toLowerCase());
-    LS.set('today', ids($('todayList').value).join(' ')); LS.set('night', ids($('nightList').value).join(' '));
+    markTodayManual();
     renderToday(); log('sys', 'Настройки сохранены');
   };
-  $('todayList').onchange = $('nightList').onchange = () => { LS.set('today', ids($('todayList').value).join(' ')); LS.set('night', ids($('nightList').value).join(' ')); renderToday(); };
+  $('todayList').onchange = $('nightList').onchange = () => { markTodayManual(); renderToday(); };
   $('btnGen').onclick = () => { $('token').value = P.randomToken(); if (!$('uid').value) $('uid').value = 'pult' + P.randomToken().slice(0, 24); };
   $('btnPair').onclick = pair;
   $('btnRaw').onclick = raw;
@@ -1374,9 +1525,12 @@
     log('sys', syncDevFavs ? 'Синхронизация избранного с Мишкой ВКЛ' : 'Синхронизация избранного с Мишкой ВЫКЛ');
   };
   $('uid').value = LS.get('uid'); $('token').value = LS.get('token');
-  $('todayList').value = LS.get('today', DEF_TODAY); $('nightList').value = LS.get('night', DEF_NIGHT);
+  $('todayList').value = LS.get('today'); $('nightList').value = LS.get('night');
   $('showKa').checked = !!LS.get('showKa'); $('log').classList.toggle('showka', $('showKa').checked);
-  $('todayHint').textContent = 'Нажми — сказки дня сыграют по очереди. Или выбери конкретную ниже.';
+  applyTodayPlaylists('startup');
+  setInterval(checkLocalDate, 15000);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) checkLocalDate(); });
+  window.addEventListener('focus', checkLocalDate);
   $('btnNamesExport').onclick = exportBundle;
   $('btnNamesCopy').onclick = copyBundle;
   $('btnNamesImport').onclick = () => { const t = $('namesJson').value.trim(); if (t) importBundleText(t); else alert('Вставь JSON в поле или выбери файл'); };
